@@ -38,7 +38,7 @@ function InfoModal({character,onClose,inBattle}){
  <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd style={statTab==='actual'?{color:'#f48bbd'}:undefined}>{statTab==='base'?character.base[i]:statTab==='actual'?(character.stats??makeTeam([character.id])[0].stats)[i]:<StageMarks stage={i===0?0:character.stages?.[i]??0}/>}</dd></div>)}</dl></>:<>
  {inBattle?<><h3>毎ターンの行動</h3><p>技を選ぶか、控えの魔法少女に交代します。基本的に素早さの高い側から行動しますが、先制技や交代は優先されます。</p>
  <h3>勝利条件</h3><p>魔法少女のHPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p></>:<><h3>選出</h3><p>6人の魔法少女から、バトルに参加させる3人を選びます。1人目に選んだ魔法少女が最初に場に出ます。</p></>}
- <h3>種族値の確認</h3><p>立ち絵を長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。</p>
+ <h3>ステータスの確認</h3><p>立ち絵を長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。</p>
  </>}
  </section></div>,document.body)
 }

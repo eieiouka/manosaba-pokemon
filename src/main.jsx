@@ -4,7 +4,14 @@ import {roster,types,colors} from './data.js';
 import {start,resolve} from './battle.js';
 import './style.css';
 function Type({type}){return <span className="type" style={{background:colors[type]}}>{types[type]}</span>}
-function Portrait({c}){return <div className="portrait" style={{'--accent':c.color}}><span>{c.mark}</span></div>}
+function Portrait({c}){
+ const [loadedId,setLoadedId]=useState(null);
+ const ready=loadedId===c.id;
+ return <div className="portrait" style={{'--accent':c.color,position:'relative',overflow:'hidden',...(ready?{background:'transparent',borderColor:'transparent'}:{})}}>
+ {!ready&&<span>{c.mark}</span>}
+ <img key={c.id} src={`/characters/${c.id}.png`} alt={c.name} onLoad={()=>setLoadedId(c.id)} onError={()=>setLoadedId(null)} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',visibility:ready?'visible':'hidden'}}/>
+ </div>
+}
 function App(){
  const [selected,setSelected]=useState([]),[battle,setBattle]=useState(null),[tab,setTab]=useState('move');
  const toggle=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):s.length<3?[...s,id]:s);

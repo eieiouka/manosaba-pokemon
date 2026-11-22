@@ -30,7 +30,7 @@ function StageMarks({stage=0}){
 function statRange(base,index){
  const min=index===0?base+60:Math.floor((base+5)*9/10);
  const max=index===0?base+107:Math.floor((base+52)*11/10);
- return `${min}～${max}`;
+ return <>{min}<span style={{color:"#fff"}}>～</span>{max}</>;
 }
 function InfoModal({character,onClose,inBattle,opponent=false}){
  const [statTab,setStatTab]=useState('base');

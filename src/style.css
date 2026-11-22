@@ -73,7 +73,7 @@ main:has(.arena) footer{margin-top:4px}
  main:has(.arena) .fighter{min-height:120px}
  main:has(.arena) .fighter .portrait{width:96px;height:96px;font-size:53px}
  .fighter h2{font-size:16px}
- main:has(.arena) .log{min-height:90px;margin:12px 0;padding:12px 16px;line-height:1.6}
+ main:has(.arena) .log{min-height:70px;margin:10px 0;padding:8px 12px;line-height:1.4}
  main:has(.arena) .moves button{padding:10px;gap:8px}
  .moves strong{font-size:15px}
 }

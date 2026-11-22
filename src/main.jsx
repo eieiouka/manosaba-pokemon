@@ -35,7 +35,7 @@ function InfoModal({character,onClose,inBattle}){
  <div className="info-heading"><h2>{character?character.name:'How to play'}</h2><button ref={closeRef} className="ghost" onClick={onClose}>閉じる</button></div>
  {character?<><div className="info-character"><Portrait c={character}/><div className="type-list">{character.types.map(t=><Type key={t} type={t}/>)}</div></div>
  <div className="stat-tabs" role="group" aria-label="能力表示">{[['base','種族値'],['actual','実数値'],['stage','能力変化']].map(([id,label])=><button key={id} type="button" aria-pressed={statTab===id} className={statTab===id?'active':''} onClick={()=>setStatTab(id)}>{label}</button>)}</div>
- <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd>{statTab==='base'?character.base[i]:statTab==='actual'?(character.stats??makeTeam([character.id])[0].stats)[i]:<StageMarks stage={i===0?0:character.stages?.[i]??0}/>}</dd></div>)}</dl></>:<>
+ <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd style={statTab==='actual'?{color:'#f48bbd'}:undefined}>{statTab==='base'?character.base[i]:statTab==='actual'?(character.stats??makeTeam([character.id])[0].stats)[i]:<StageMarks stage={i===0?0:character.stages?.[i]??0}/>}</dd></div>)}</dl></>:<>
  {inBattle?<><h3>毎ターンの行動</h3><p>技を選ぶか、控えの魔法少女に交代します。基本的に素早さの高い側から行動しますが、先制技や交代は優先されます。</p>
  <h3>勝利条件</h3><p>魔法少女のHPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p></>:<><h3>選出</h3><p>6人の魔法少女から、バトルに参加させる3人を選びます。1人目に選んだ魔法少女が最初に場に出ます。</p></>}
  <h3>種族値の確認</h3><p>立ち絵を長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。</p>

@@ -42,7 +42,7 @@ export function resolveSequence(s,action,rng=Math.random){
   if(current(0).hp===0){
     if(action.kind!=='switch'||!n.teams[0][action.index]?.hp)return [];
     n.active[0]=action.index;
-    emit(`いけ！ ${current(0).name}！`);
+    emit(`いけ！ ${current(0).name}！`,850,'switch');
     return steps;
   }
   if(action.kind==='switch'&&(!n.teams[0][action.index]?.hp||action.index===n.active[0]))return [];
@@ -57,7 +57,7 @@ export function resolveSequence(s,action,rng=Math.random){
     if(act.kind==='switch'){
       a.stages=[0,0,0,0,0,0];
       n.active[side]=act.index;
-      emit(`${a.name}を戻した！ ${current(side).name}を繰り出した！`);
+      emit(`${a.name}を戻した！ ${current(side).name}を繰り出した！`,850,'switch');
       continue;
     }
     const m=a.moves[act.index];if(!m)continue;
@@ -74,13 +74,13 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e>1)emit('効果は抜群だ！');
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
-    if(!d.hp){d.fainted=true;emit(`${side===0?'相手の':''}${d.name}は倒れた！`,side===0?2300:1100)}
+    if(!d.hp){d.fainted=true;emit(`${side===0?'相手の':''}${d.name}は倒れた！`,side===0?2300:1100,'faint')}
   }
   n.turn++;
-  if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0)}
+  if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0,n.winner===0?'victory':'defeat')}
   else if(!current(1).hp){
     n.active[1]=n.teams[1].findIndex(c=>c.hp>0);
-    emit(`CPUは ${current(1).name}を繰り出した！`);
+    emit(`CPUは ${current(1).name}を繰り出した！`,850,'switch');
   }else emit(null,0);
   return steps;
 }

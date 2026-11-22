@@ -34,7 +34,7 @@ export function resolveSequence(s,action,rng=Math.random){
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     const e=effectiveness(m.type,d.types);
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
-    if(rng()*100>=m.accuracy){emit('しかし上手く決まらなかった！');continue}
+    if(rng()*100>=m.accuracy){emit('しかし外れてしまった！');continue}
     d.hp=Math.max(0,d.hp-damage(a,d,m,.85+rng()*.15));
     emit(null,400);
     if(e>=4)emit('効果はかなり抜群だ！');

@@ -27,7 +27,12 @@ function StageMarks({stage=0}){
  if(!count)return <span className="stage-neutral" aria-label="変化なし">－</span>;
  return <span className={'stage-marks '+(stage>0?'stage-up':'stage-down')} aria-label={`${stage>0?'上昇':'下降'}${count}段階`}>{Array.from({length:count},(_,i)=><span key={i}>{stage>0?'▲':'▼'}</span>)}</span>
 }
-function InfoModal({character,onClose,inBattle}){
+function statRange(base,index){
+ const min=index===0?base+60:Math.floor((base+5)*9/10);
+ const max=index===0?base+107:Math.floor((base+52)*11/10);
+ return `${min}～${max}`;
+}
+function InfoModal({character,onClose,inBattle,opponent=false}){
  const [statTab,setStatTab]=useState('base');
  const closeRef=useRef(null);
  useEffect(()=>{const previous=document.activeElement;closeRef.current?.focus();const key=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',key);return()=>{window.removeEventListener('keydown',key);previous?.focus?.()}},[onClose]);
@@ -35,7 +40,7 @@ function InfoModal({character,onClose,inBattle}){
  <div className="info-heading"><h2>{character?character.name:'How to play'}</h2><button ref={closeRef} className="ghost" onClick={onClose}>閉じる</button></div>
  {character?<><div className="info-character"><Portrait c={character}/><div className="type-list">{character.types.map(t=><Type key={t} type={t}/>)}</div></div>
  <div className="stat-tabs" role="group" aria-label="能力表示">{[['base','種族値'],['actual','実数値'],['stage','能力変化']].map(([id,label])=><button key={id} type="button" aria-pressed={statTab===id} className={statTab===id?'active':''} onClick={()=>setStatTab(id)}>{label}</button>)}</div>
- <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd style={statTab==='actual'?{color:'#f48bbd'}:undefined}>{statTab==='base'?character.base[i]:statTab==='actual'?(character.stats??makeTeam([character.id])[0].stats)[i]:<StageMarks stage={i===0?0:character.stages?.[i]??0}/>}</dd></div>)}</dl></>:<>
+ <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd style={statTab==='actual'?{color:'#f48bbd',...(opponent?{fontSize:'clamp(11px, 3.5vw, 16px)',whiteSpace:'nowrap'}:{})}:undefined}>{statTab==='base'?character.base[i]:statTab==='actual'?(opponent?statRange(character.base[i],i):(character.stats??makeTeam([character.id])[0].stats)[i]):<StageMarks stage={i===0?0:character.stages?.[i]??0}/>}</dd></div>)}</dl></>:<>
  {inBattle?<><h3>毎ターンの行動</h3><p>技を選ぶか、控えの魔法少女に交代します。基本的に素早さの高い側から行動しますが、先制技や交代は優先されます。</p>
  <h3>勝利条件</h3><p>魔法少女のHPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p></>:<><h3>選出</h3><p>6人の魔法少女から、バトルに参加させる3人を選びます。1人目に選んだ魔法少女が最初に場に出ます。</p></>}
  <h3>ステータスの確認</h3><p>立ち絵を長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。</p>
@@ -56,7 +61,7 @@ function App(){
  const [gameScale,setGameScale]=useState(1);
  const [info,setInfo]=useState(null);
  const closeInfo=useCallback(()=>setInfo(null),[]);
- const inspect=useCallback(c=>setInfo({character:c}),[]);
+ const inspect=useCallback((c,opponent=false)=>setInfo({character:c,opponent}),[]);
  useLayoutEffect(()=>{const resize=()=>setGameScale(Math.min(1,window.innerWidth/920,window.innerHeight/640));resize();window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[]);
  const [selected,setSelected]=useState([]),[battle,setBattle]=useState(null),[tab,setTab]=useState('move');
  const expireSelection=useCallback(()=>setBattle(b=>b??start(roster.slice(0,3).map(c=>c.id))),[]);
@@ -80,16 +85,16 @@ function App(){
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA POKEMON</div><h1>まのさばポケモン</h1></div><button className="badge help-button" onClick={()=>setInfo({})}>How to play</button></header>
  {!battle?<><SelectionTimer onExpire={expireSelection}/><div className="preview-top">
- <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c} onInspect={inspect}/><span>{c.short}</span></div>)}</div></section></div>
+ <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c} onInspect={c=>inspect(c,true)}/><span>{c.short}</span></div>)}</div></section></div>
  
  <div className="cards">{roster.map(c=>{const index=selected.indexOf(c.id);return <button key={c.id} className={'card '+(index>=0?'selected':'')} aria-disabled={index<0&&selected.length===3} onClick={()=>toggle(c.id)}><Portrait c={c} onInspect={inspect}/><div className="card-info"><strong>{c.name}</strong><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div></div>{index>=0&&<span className="num" style={{fontSize:"var(--selection-number-size, 3.0375em)",lineHeight:1}}>{index+1}</span>}</button>})}</div>
  <div className="selection-bar" style={{justifyContent:'flex-end'}}><button className="primary" disabled={selected.length!==3} onClick={()=>setBattle(b=>b??start(selected))}>対戦開始</button></div>
- </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp"><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><Portrait c={c} fainted={!!c.fainted} onInspect={inspect}/></div>})}</div>
+ </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp"><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><Portrait c={c} fainted={!!c.fainted} onInspect={c=>inspect(c,side===1)}/></div>})}</div>
  <div className="log" aria-live="polite">{battle.logs.at(-1)}</div>
  {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp?'on':''} disabled={busy} onClick={()=>setTab('switch')}>交代</button></div>
  {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} aria-disabled={busy||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} onInspect={inspect}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><button key={m.name} disabled={busy} onClick={()=>act({kind:'move',index:i})}><div><Type type={m.type}/><small>{m.category==='physical'?'物理':'特殊'}</small></div><strong>{m.name}</strong></button>)}</div>}</section>}
  </>}
- {info&&<InfoModal character={info.character} onClose={closeInfo} inBattle={!!battle}/>}
+ {info&&<InfoModal character={info.character} onClose={closeInfo} inBattle={!!battle} opponent={info.opponent}/>}
  </main>
 }
 createRoot(document.getElementById('root')).render(<App/>);

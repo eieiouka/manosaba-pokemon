@@ -40,7 +40,7 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e>1)emit('効果は抜群だ！');
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
-    if(!d.hp){d.fainted=true;emit(`${d.name}は倒れた！`,1100)}
+    if(!d.hp){d.fainted=true;emit(`${d.name}は倒れた！`,side===0?2300:1100)}
   }
   n.turn++;
   if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0)}

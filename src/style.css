@@ -121,3 +121,7 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .stage-up{color:#f48bbd}
 .stage-down{color:#78b9ff}
 .stage-neutral{color:#fff;font-weight:700}
+
+/* HP readout above the gauge */
+.hp-number{font-size:17px;font-weight:700;color:#f3f0fa;font-variant-numeric:tabular-nums;text-align:right;margin-top:5px;line-height:1.25}
+.fighter-info .hp{margin-top:3px}

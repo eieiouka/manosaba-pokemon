@@ -129,3 +129,5 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .fighter-meta{display:flex;align-items:center;justify-content:space-between;gap:4px 8px;flex-wrap:wrap}
 .fighter-meta .hp-number{margin:0 0 0 auto;white-space:nowrap}
 @media(max-width:680px){.fighter-info{flex:1;width:auto;min-width:0}.fighter-meta{gap:3px 6px}.fighter-meta .hp-number{font-size:16px}}
+
+.battle-timer{margin-left:auto;color:#c9b5fb;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}

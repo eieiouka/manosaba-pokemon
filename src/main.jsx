@@ -19,8 +19,8 @@ function App(){
  const reset=()=>{setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  return <main><header><div><div className="eyebrow">MANOSABA BATTLE</div><h1>魔法少女バトル</h1></div><div className="badge">SINGLE / Lv.50</div></header>
- {!battle?<><section className="intro"><div className="eyebrow">TEAM PREVIEW</div><h2>3人を選出せよ</h2><p>6人の魔法少女から、戦闘に出す3人を順番に選んでください。</p></section>
- <section className="enemy"><div><div className="eyebrow">OPPONENT</div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c}/><span>{c.short}</span></div>)}</div></section>
+ {!battle?<><div className="preview-top"><section className="intro"><div className="eyebrow">TEAM PREVIEW</div><h2>3人を選出せよ</h2><p>6人の魔法少女から、戦闘に出す3人を順番に選んでください。</p></section>
+ <section className="enemy"><div><div className="eyebrow">OPPONENT</div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c}/><span>{c.short}</span></div>)}</div></section></div>
  <div className="section-heading"><h3>あなたのパーティ</h3><span>{selected.length} / 3 選出済み</span></div>
  <div className="cards">{roster.map(c=>{const index=selected.indexOf(c.id);return <button key={c.id} className={'card '+(index>=0?'selected':'')} disabled={index<0&&selected.length===3} onClick={()=>toggle(c.id)}><Portrait c={c}/><div className="card-info"><strong>{c.name}</strong><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><small>Lv.50</small></div><span className="num">{index>=0?index+1:'＋'}</span></button>})}</div>
  <div className="selection-bar"><div className="slots">{[0,1,2].map(i=><div className="slot" key={i}><span>{i+1}</span>{selected[i]?roster.find(c=>c.id===selected[i]).short:'未選出'}</div>)}</div><button className="primary" disabled={selected.length!==3} onClick={()=>setBattle(start(selected))}>対戦開始</button></div>

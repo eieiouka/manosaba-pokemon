@@ -86,4 +86,4 @@ main:has(.arena) footer{margin-top:4px}
 .preview-top .enemy-list{grid-template-columns:repeat(6,minmax(0,1fr));width:min(100%,400px)}
 @media(max-width:680px){.selection-heading{margin:4px 0 6px;font-size:16px}.preview-top .enemy{display:grid;gap:6px}.preview-top .enemy-list{width:100%}}
 
-@media(max-width:680px){.card .num{--selection-number-size:6.075em}}
+@media(max-width:680px){.card .num{--selection-number-size:4.55625em}}

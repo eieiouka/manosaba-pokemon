@@ -48,3 +48,32 @@ main:has(.arena) .fighter .portrait{width:88px;height:88px}
 main:has(.arena) .log{min-height:64px;margin:6px 0;padding:4px 10px}
 main:has(.arena) .moves button{padding:5px 10px;gap:2px}
 main:has(.arena) footer{margin-top:4px}
+
+/* Keep the CPU preview on the right without the redundant introduction. */
+.preview-top .enemy{grid-column:2}
+
+/* Restore the original responsive phone layout, not a scaled desktop canvas. */
+@media(max-width:680px){
+ html,body,#root{height:auto;min-height:100%;overflow:visible}
+ main{position:static;width:100%;height:auto;max-width:920px;margin:0 auto;padding:16px 12px 0;transform:none}
+ header h1{font-size:clamp(22px,4.3vw,32px)}
+ .preview-top{grid-template-columns:1fr;gap:10px;margin-top:12px}
+ .preview-top .enemy{grid-column:1;padding:8px 10px}
+ .preview-top .mini .portrait{height:36px;width:min(100%,36px)}
+ .cards{gap:8px}
+ .card{padding:9px;gap:8px;flex-wrap:wrap}
+ .card.selected{padding:8px}
+ .card .portrait{width:48px;height:48px;font-size:26px;border-radius:10px}
+ .card strong{font-size:14px}
+ .card .num{position:absolute;right:8px;top:8px}
+ .selection-bar .primary{width:100%}
+ .slots{width:100%}
+ .slot{flex:1;text-align:center}
+ main:has(.arena) .arena{padding:14px;gap:16px}
+ main:has(.arena) .fighter{min-height:120px}
+ main:has(.arena) .fighter .portrait{width:96px;height:96px;font-size:53px}
+ .fighter h2{font-size:16px}
+ main:has(.arena) .log{min-height:90px;margin:12px 0;padding:12px 16px;line-height:1.6}
+ main:has(.arena) .moves button{padding:10px;gap:8px}
+ .moves strong{font-size:15px}
+}

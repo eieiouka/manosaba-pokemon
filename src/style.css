@@ -77,3 +77,11 @@ main:has(.arena) footer{margin-top:4px}
  main:has(.arena) .moves button{padding:10px;gap:8px}
  .moves strong{font-size:15px}
 }
+
+/* Full-width CPU preview and selection countdown */
+.selection-heading{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0 6px;font-size:18px;font-weight:700}
+.selection-timer{font-variant-numeric:tabular-nums;color:#c9b5fb}
+.preview-top{display:block;margin:0 0 10px}
+.preview-top .enemy{display:flex;width:100%;justify-content:space-between;gap:12px}
+.preview-top .enemy-list{grid-template-columns:repeat(6,minmax(0,1fr));width:min(100%,400px)}
+@media(max-width:680px){.selection-heading{margin:10px 0 6px;font-size:16px}.preview-top .enemy{display:grid;gap:6px}.preview-top .enemy-list{width:100%}}

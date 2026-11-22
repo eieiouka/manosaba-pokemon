@@ -58,6 +58,17 @@ function SelectionTimer({onExpire}){
  },[onExpire]);
  return <div className="selection-heading"><span>3体選んでください</span><span className="selection-timer">{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span></div>
 }
+function BattleTimer({busy}){
+ const [seconds,setSeconds]=useState(30);
+ useEffect(()=>{
+  if(busy)return;
+  setSeconds(30);
+  const deadline=Date.now()+30000;
+  const timer=setInterval(()=>{const remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));setSeconds(remaining);if(remaining===0)clearInterval(timer)},200);
+  return()=>clearInterval(timer);
+ },[busy]);
+ return <time className="battle-timer" aria-label="残り時間">{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</time>;
+}
 function App(){
  const [gameScale,setGameScale]=useState(1);
  const [info,setInfo]=useState(null);
@@ -94,7 +105,7 @@ function App(){
  <div className="selection-bar" style={{justifyContent:'flex-end'}}><button className="primary" disabled={selected.length!==3} onClick={()=>{unlockAttackAudio();setBattle(b=>b??start(selected))}}>対戦開始</button></div>
  </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="fighter-meta"><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><div className="hp" key={c.id}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div></div><Portrait c={c} fainted={!!c.fainted} onInspect={c=>inspect(c,side===1)}/></div>})}</div>
  <div className="log" aria-live="polite">{battle.logs.at(-1)}</div>
- {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp?'on':''} disabled={busy} onClick={()=>setTab('switch')}>交代</button></div>
+ {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp?'on':''} disabled={busy} onClick={()=>setTab('switch')}>交代</button><BattleTimer busy={busy}/></div>
  {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} aria-disabled={busy||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} onInspect={inspect}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><button key={m.name} disabled={busy} onClick={()=>act({kind:'move',index:i})}><div><Type type={m.type}/><small>{m.category==='physical'?'物理':'特殊'}</small></div><strong>{m.name}</strong></button>)}</div>}</section>}
  </>}
  {info&&<InfoModal character={info.character} onClose={closeInfo} inBattle={!!battle} opponent={info.opponent}/>}

@@ -42,6 +42,6 @@ function App(){
  {battle.winner!==null?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={!active[0].hp} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp?'on':''} onClick={()=>setTab('switch')}>交代</button></div>
  {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} disabled={!c.hp||i===battle.active[0]} onClick={()=>act({kind:'switch',index:i})}><Portrait c={c}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><button key={m.name} onClick={()=>act({kind:'move',index:i})}><div><Type type={m.type}/><small>{m.category==='physical'?'物理':'特殊'}</small></div><strong>{m.name}</strong></button>)}</div>}</section>}
  </>}
- <footer>6350 シングルバトル　·　Prototype 0.1　·　種族値・技は仮設定</footer></main>
+ </main>
 }
 createRoot(document.getElementById('root')).render(<App/>);

@@ -1,4 +1,4 @@
-import React,{useState,useLayoutEffect} from 'react';
+import React,{useState,useLayoutEffect,useEffect} from 'react';
 import {createRoot} from 'react-dom/client';
 import {roster,types,colors} from './data.js';
 import {start,resolve} from './battle.js';
@@ -12,6 +12,16 @@ function Portrait({c}){
  <img key={c.id} src={`/characters/${c.id}.png`} alt={c.name} onLoad={()=>setLoadedId(c.id)} onError={()=>setLoadedId(null)} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',visibility:ready?'visible':'hidden'}}/>
  </div>
 }
+function SelectionTimer(){
+ const [seconds,setSeconds]=useState(60);
+ useEffect(()=>{
+  const deadline=Date.now()+60000;
+  const tick=()=>{const remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));setSeconds(remaining);if(remaining===0)clearInterval(timer)};
+  const timer=setInterval(tick,200);
+  return()=>clearInterval(timer);
+ },[]);
+ return <div className="selection-heading"><span>3体選んでください</span><span className="selection-timer">{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span></div>
+}
 function App(){
  const [gameScale,setGameScale]=useState(1);
  useLayoutEffect(()=>{const resize=()=>setGameScale(Math.min(1,window.innerWidth/920,window.innerHeight/640));resize();window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[]);
@@ -21,9 +31,9 @@ function App(){
  const reset=()=>{setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA BATTLE</div><h1>魔法少女バトル</h1></div><div className="badge">SINGLE</div></header>
- {!battle?<><div className="preview-top">
- <section className="enemy"><div><div className="eyebrow">OPPONENT</div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c}/><span>{c.short}</span></div>)}</div></section></div>
- <div className="section-heading"><h3>あなたのパーティ</h3><span>{selected.length} / 3 選出済み</span></div>
+ {!battle?<><SelectionTimer/><div className="preview-top">
+ <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c}/><span>{c.short}</span></div>)}</div></section></div>
+ 
  <div className="cards">{roster.map(c=>{const index=selected.indexOf(c.id);return <button key={c.id} className={'card '+(index>=0?'selected':'')} disabled={index<0&&selected.length===3} onClick={()=>toggle(c.id)}><Portrait c={c}/><div className="card-info"><strong>{c.name}</strong><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div></div><span className="num">{index>=0?index+1:'＋'}</span></button>})}</div>
  <div className="selection-bar"><div className="slots">{[0,1,2].map(i=><div className="slot" key={i}><span>{i+1}</span>{selected[i]?roster.find(c=>c.id===selected[i]).short:'未選出'}</div>)}</div><button className="primary" disabled={selected.length!==3} onClick={()=>setBattle(start(selected))}>対戦開始</button></div>
  </>:<><div className="section-heading"><h3>ターン {battle.turn}</h3><button className="ghost" onClick={reset}>選出に戻る</button></div>

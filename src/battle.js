@@ -31,9 +31,9 @@ export function resolveSequence(s,action,rng=Math.random){
       continue;
     }
     const m=a.moves[act.index];if(!m)continue;
-    emit(`${a.name}の${m.name}！`,850);
+    emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     const e=effectiveness(m.type,d.types);
-    if(e===0){emit(`${d.name}には効果がないようだ…`);continue}
+    if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
     if(rng()*100>=m.accuracy){emit('しかし上手く決まらなかった！');continue}
     d.hp=Math.max(0,d.hp-damage(a,d,m,.85+rng()*.15));
     emit(null,400);
@@ -41,7 +41,7 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e>1)emit('効果は抜群だ！');
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
-    if(!d.hp){d.fainted=true;emit(`${d.name}は倒れた！`,side===0?2300:1100)}
+    if(!d.hp){d.fainted=true;emit(`${side===0?'相手の':''}${d.name}は倒れた！`,side===0?2300:1100)}
   }
   n.turn++;
   if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0)}

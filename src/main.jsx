@@ -1,19 +1,40 @@
 import React,{useState,useLayoutEffect,useEffect,useCallback,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
+import {createPortal} from 'react-dom';
 import {roster,types,colors} from './data.js';
 import {start,resolveSequence} from './battle.js';
 import './style.css';
 function Type({type}){return <span className="type" style={{background:colors[type]}}>{types[type]}</span>}
-function Portrait({c,fainted=false}){
+function Portrait({c,fainted=false,onInspect}){
  const [loadedId,setLoadedId]=useState(null);
  const ready=loadedId===c.id;
  const [faintId,setFaintId]=useState(null);
  const showFaint=fainted&&faintId===c.id;
- return <div className="portrait" style={{'--accent':c.color,position:'relative',overflow:'hidden',...(ready?{background:'transparent',borderColor:'transparent'}:{})}}>
+ const hold=useRef(null),pressed=useRef(false),origin=useRef(null);
+ const cancelHold=()=>{clearTimeout(hold.current);hold.current=null};
+ useEffect(()=>()=>clearTimeout(hold.current),[]);
+ const begin=e=>{if(!onInspect||e.button!==0)return;cancelHold();pressed.current=false;origin.current=[e.clientX,e.clientY];hold.current=setTimeout(()=>{pressed.current=true;onInspect(c)},500)};
+ const move=e=>{if(origin.current&&Math.hypot(e.clientX-origin.current[0],e.clientY-origin.current[1])>10)cancelHold()};
+ return <div className="portrait" onPointerDown={begin} onPointerMove={move} onPointerUp={cancelHold} onPointerCancel={cancelHold} onPointerLeave={cancelHold} onContextMenu={e=>e.preventDefault()} onClickCapture={e=>{if(pressed.current){e.preventDefault();e.stopPropagation();pressed.current=false}}} style={{'--accent':c.color,position:'relative',overflow:'hidden',...(ready?{background:'transparent',borderColor:'transparent'}:{})}}>
  {!ready&&<span>{c.mark}</span>}
  <img key={c.id} src={`/characters/${c.id}.png`} alt={c.name} onLoad={()=>setLoadedId(c.id)} onError={()=>setLoadedId(null)} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',visibility:ready&&!showFaint?'visible':'hidden',filter:fainted?'grayscale(1)':'none'}}/>
  {fainted&&<img key={c.id+'-down'} src={`/characters/${c.id}_down.png`} alt={c.name+'（瀕死）'} onLoad={()=>setFaintId(c.id)} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',visibility:showFaint?'visible':'hidden'}}/>}
  </div>
+}
+const statLabels=['HP','攻撃','防御','特攻','特防','素早さ'];
+function InfoModal({character,onClose}){
+ const closeRef=useRef(null);
+ useEffect(()=>{const previous=document.activeElement;closeRef.current?.focus();const key=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',key);return()=>{window.removeEventListener('keydown',key);previous?.focus?.()}},[onClose]);
+ return createPortal(<div className="info-backdrop" onClick={onClose}><section role="dialog" aria-modal="true" aria-label={character?character.name+'の種族値':'How to play'} className="info-dialog" onClick={e=>e.stopPropagation()}>
+ <div className="info-heading"><h2>{character?character.name:'How to play'}</h2><button ref={closeRef} className="ghost" onClick={onClose}>閉じる</button></div>
+ {character?<><div className="info-character"><Portrait c={character}/><div className="type-list">{character.types.map(t=><Type key={t} type={t}/>)}</div></div>
+ <h3>種族値</h3><dl className="stats-list">{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd>{character.base[i]}</dd></div>)}</dl></>:<>
+ <h3>選出</h3><p>6人の魔法少女から3人を出撃順に選びます。制限時間は60秒。時間切れの場合は上から3人を自動選出します。</p>
+ <h3>バトル</h3><p>レベル50のシングルバトルです。技を選ぶか、控えの魔法少女に交代します。基本的に素早さの高い側から行動しますが、先制技や交代は優先されます。</p>
+ <p>タイプ相性によってダメージが変化します。HPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p>
+ <h3>種族値の確認</h3><p>立ち絵を長押しすると、HP・攻撃・防御・特攻・特防・素早さの種族値を確認できます。</p>
+ </>}
+ </section></div>,document.body)
 }
 function SelectionTimer({onExpire}){
  const [seconds,setSeconds]=useState(60);
@@ -27,6 +48,9 @@ function SelectionTimer({onExpire}){
 }
 function App(){
  const [gameScale,setGameScale]=useState(1);
+ const [info,setInfo]=useState(null);
+ const closeInfo=useCallback(()=>setInfo(null),[]);
+ const inspect=useCallback(c=>setInfo({character:c}),[]);
  useLayoutEffect(()=>{const resize=()=>setGameScale(Math.min(1,window.innerWidth/920,window.innerHeight/640));resize();window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[]);
  const [selected,setSelected]=useState([]),[battle,setBattle]=useState(null),[tab,setTab]=useState('move');
  const expireSelection=useCallback(()=>setBattle(b=>b??start(roster.slice(0,3).map(c=>c.id))),[]);
@@ -48,17 +72,18 @@ function App(){
  };
  const reset=()=>{setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
- return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA POKEMON</div><h1>まのさばポケモン</h1></div><div className="badge">SINGLE</div></header>
+ return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA POKEMON</div><h1>まのさばポケモン</h1></div><button className="badge help-button" onClick={()=>setInfo({})}>How to play</button></header>
  {!battle?<><SelectionTimer onExpire={expireSelection}/><div className="preview-top">
- <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c}/><span>{c.short}</span></div>)}</div></section></div>
+ <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c} onInspect={inspect}/><span>{c.short}</span></div>)}</div></section></div>
  
- <div className="cards">{roster.map(c=>{const index=selected.indexOf(c.id);return <button key={c.id} className={'card '+(index>=0?'selected':'')} disabled={index<0&&selected.length===3} onClick={()=>toggle(c.id)}><Portrait c={c}/><div className="card-info"><strong>{c.name}</strong><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div></div>{index>=0&&<span className="num" style={{fontSize:"var(--selection-number-size, 3.0375em)",lineHeight:1}}>{index+1}</span>}</button>})}</div>
+ <div className="cards">{roster.map(c=>{const index=selected.indexOf(c.id);return <button key={c.id} className={'card '+(index>=0?'selected':'')} aria-disabled={index<0&&selected.length===3} onClick={()=>toggle(c.id)}><Portrait c={c} onInspect={inspect}/><div className="card-info"><strong>{c.name}</strong><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div></div>{index>=0&&<span className="num" style={{fontSize:"var(--selection-number-size, 3.0375em)",lineHeight:1}}>{index+1}</span>}</button>})}</div>
  <div className="selection-bar" style={{justifyContent:'flex-end'}}><button className="primary" disabled={selected.length!==3} onClick={()=>setBattle(b=>b??start(selected))}>対戦開始</button></div>
- </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp"><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><Portrait c={c} fainted={!!c.fainted}/></div>})}</div>
+ </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp"><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><Portrait c={c} fainted={!!c.fainted} onInspect={inspect}/></div>})}</div>
  <div className="log" aria-live="polite">{battle.logs.at(-1)}</div>
  {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp?'on':''} disabled={busy} onClick={()=>setTab('switch')}>交代</button></div>
- {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} disabled={busy||!c.hp||i===battle.active[0]} onClick={()=>act({kind:'switch',index:i})}><Portrait c={c}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><button key={m.name} disabled={busy} onClick={()=>act({kind:'move',index:i})}><div><Type type={m.type}/><small>{m.category==='physical'?'物理':'特殊'}</small></div><strong>{m.name}</strong></button>)}</div>}</section>}
+ {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} aria-disabled={busy||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} onInspect={inspect}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><button key={m.name} disabled={busy} onClick={()=>act({kind:'move',index:i})}><div><Type type={m.type}/><small>{m.category==='physical'?'物理':'特殊'}</small></div><strong>{m.name}</strong></button>)}</div>}</section>}
  </>}
+ {info&&<InfoModal character={info.character} onClose={closeInfo}/>}
  </main>
 }
 createRoot(document.getElementById('root')).render(<App/>);

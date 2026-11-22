@@ -40,3 +40,11 @@ footer{margin:8px 0 0;padding:0}
 .moves button,.switches button{padding:7px 10px;gap:4px}
 .switches{margin-top:6px}
 .result{padding:10px}
+
+/* Keep the battle controls within the same canvas. */
+main:has(.arena) .arena{padding:8px 20px;gap:6px}
+main:has(.arena) .fighter{min-height:88px}
+main:has(.arena) .fighter .portrait{width:88px;height:88px}
+main:has(.arena) .log{min-height:64px;margin:6px 0;padding:4px 10px}
+main:has(.arena) .moves button{padding:5px 10px;gap:2px}
+main:has(.arena) footer{margin-top:4px}

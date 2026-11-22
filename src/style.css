@@ -87,3 +87,22 @@ main:has(.arena) footer{margin-top:4px}
 @media(max-width:680px){.selection-heading{margin:4px 0 6px;font-size:16px}.preview-top .enemy{display:grid;gap:6px}.preview-top .enemy-list{width:100%}}
 
 @media(max-width:680px){.card .num{--selection-number-size:3.0375em}}
+
+/* Help and long-press character information */
+.help-button{background:#252337;font:inherit;font-size:13px;font-weight:700}
+.help-button:hover{background:#39334e}
+.portrait{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.portrait img{pointer-events:none;-webkit-user-drag:none}
+button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+.info-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:#090811b8;padding:16px}
+.info-dialog{width:min(100%,480px);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;background:#252337;border:1px solid #666080;border-radius:14px;padding:18px;color:#f3f0fa;box-shadow:0 16px 64px #0008}
+.info-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.info-heading h2{font-size:20px}
+.info-dialog h3{font-size:16px;margin:12px 0 6px;color:#d9cbff}
+.info-dialog p{font-size:15px;line-height:1.65;margin:6px 0;color:#dfd9ee}
+.info-character{display:flex;align-items:center;gap:16px;margin-bottom:12px}
+.stats-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 0}
+.stats-list>div{display:flex;justify-content:space-between;align-items:center;background:#181825;border:1px solid #403b54;border-radius:8px;padding:10px 12px}
+.stats-list dt{font-size:14px;color:#d6d0e8}
+.stats-list dd{margin:0;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:680px){.info-dialog{padding:14px}.info-heading h2{font-size:18px}}

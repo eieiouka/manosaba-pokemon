@@ -1,9 +1,10 @@
 const attacks=['hit','explosion','cut','gun_shot','electrical_shot'];
 const status=['up','down','heal','poison','paralysis','sleep','burn','freeze','protect'];
-const names=[...attacks,...status];
+const battle=['switch','faint','victory','defeat'];
+const names=[...attacks,...status,...battle];
 let context=null;
 const buffers=new Map(),pending=new Map();
-const url=name=>'/sounds/'+(status.includes(name)?'status':'attacks')+'/'+name+'.mp3';
+const url=name=>'/sounds/'+(battle.includes(name)?'battle':status.includes(name)?'status':'attacks')+'/'+name+'.mp3';
 function load(name){
  if(!context)return Promise.resolve(null);
  if(buffers.has(name))return Promise.resolve(buffers.get(name));

@@ -2,7 +2,7 @@ import React,{useState,useLayoutEffect,useEffect,useCallback,useRef} from 'react
 import {createRoot} from 'react-dom/client';
 import {createPortal} from 'react-dom';
 import {roster,types,colors} from './data.js';
-import {start,resolveSequence} from './battle.js';
+import {start,resolveSequence,makeTeam} from './battle.js';
 import './style.css';
 function Type({type}){return <span className="type" style={{background:colors[type]}}>{types[type]}</span>}
 function Portrait({c,fainted=false,onInspect}){
@@ -22,16 +22,23 @@ function Portrait({c,fainted=false,onInspect}){
  </div>
 }
 const statLabels=['HP','攻撃','防御','特攻','特防','素早さ'];
+function StageMarks({stage=0}){
+ const count=Math.min(6,Math.abs(Math.trunc(stage)||0));
+ if(!count)return <span className="stage-neutral" aria-label="変化なし">－</span>;
+ return <span className={'stage-marks '+(stage>0?'stage-up':'stage-down')} aria-label={`${stage>0?'上昇':'下降'}${count}段階`}>{Array.from({length:count},(_,i)=><span key={i}>{stage>0?'▲':'▼'}</span>)}</span>
+}
 function InfoModal({character,onClose,inBattle}){
+ const [statTab,setStatTab]=useState('base');
  const closeRef=useRef(null);
  useEffect(()=>{const previous=document.activeElement;closeRef.current?.focus();const key=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',key);return()=>{window.removeEventListener('keydown',key);previous?.focus?.()}},[onClose]);
  return createPortal(<div className="info-backdrop" onClick={onClose}><section role="dialog" aria-modal="true" aria-label={character?character.name+'の種族値':'How to play'} className="info-dialog" onClick={e=>e.stopPropagation()}>
  <div className="info-heading"><h2>{character?character.name:'How to play'}</h2><button ref={closeRef} className="ghost" onClick={onClose}>閉じる</button></div>
  {character?<><div className="info-character"><Portrait c={character}/><div className="type-list">{character.types.map(t=><Type key={t} type={t}/>)}</div></div>
- <h3>種族値</h3><dl className="stats-list">{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd>{character.base[i]}</dd></div>)}</dl></>:<>
+ <div className="stat-tabs" role="group" aria-label="能力表示">{[['base','種族値'],['actual','実数値'],['stage','能力変化']].map(([id,label])=><button key={id} type="button" aria-pressed={statTab===id} className={statTab===id?'active':''} onClick={()=>setStatTab(id)}>{label}</button>)}</div>
+ <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd>{statTab==='base'?character.base[i]:statTab==='actual'?(character.stats??makeTeam([character.id])[0].stats)[i]:<StageMarks stage={i===0?0:character.stages?.[i]??0}/>}</dd></div>)}</dl></>:<>
  {inBattle?<><h3>毎ターンの行動</h3><p>技を選ぶか、控えの魔法少女に交代します。基本的に素早さの高い側から行動しますが、先制技や交代は優先されます。</p>
  <h3>勝利条件</h3><p>魔法少女のHPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p></>:<><h3>選出</h3><p>6人の魔法少女から、バトルに参加させる3人を選びます。1人目に選んだ魔法少女が最初に場に出ます。</p></>}
- <h3>種族値の確認</h3><p>立ち絵を長押しすると、魔法少女の種族値を確認できます。</p>
+ <h3>種族値の確認</h3><p>立ち絵を長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。</p>
  </>}
  </section></div>,document.body)
 }

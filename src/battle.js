@@ -34,7 +34,7 @@ export function damageRange(s,a,d,m){
  const i=m.category==='physical'?2:4;
  const target=invested=>({...d,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):v+20)});
  const low=target(true),high=target(false);
- return {label,min:Math.floor(damage(a,low,m,85)*hits*100/low.stats[0]),max:Math.floor(damage(a,high,m,100)*hits*100/high.stats[0])};
+ return {label,min:Math.floor(damage(a,low,m,85)*100/low.stats[0]),max:Math.floor(damage(a,high,m,100)*100/high.stats[0])};
 }
 export const canUseMove=(c,i)=>!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i;
 const moveScore=(s,a,d,m)=>Array.from({length:16},(_,i)=>damage(a,d,m,85+i)).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);

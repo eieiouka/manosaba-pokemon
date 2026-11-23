@@ -21,7 +21,8 @@ export function damage(a,d,m,roll=100,critical=false){
 }
 const criticalChance=m=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,m.critStage??(m.name==='サイコカッター'?1:0)))];
 export function start(ids){const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);return {teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null}}
-export function chooseCpu(s){const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];return {kind:'move',index:a.moves.map((m,i)=>({i,score:Array.from({length:16},(_,i)=>damage(a,d,m,85+i)).reduce((sum,v)=>sum+v,0)/16*m.accuracy/100})).sort((a,b)=>b.score-a.score)[0].i}}
+export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:1;
+export function chooseCpu(s){const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];return {kind:'move',index:a.moves.map((m,i)=>({i,score:Array.from({length:16},(_,i)=>damage(a,d,m,85+i)).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0)})).sort((a,b)=>b.score-a.score)[0].i}}
 // Attack sound mapping. Individual moves can override the default with sound.
 const attackSounds={
  'のしかかり':'hit','シャドーボール':'explosion','かえんほうしゃ':'explosion','ムーンフォース':'explosion',
@@ -62,18 +63,26 @@ export function resolveSequence(s,action,rng=Math.random){
     }
     const m=a.moves[act.index];if(!m)continue;
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
+    const limit=hitLimit(n,m);
+    if(!limit){emit('しかし上手く決まらなかった！');continue}
     const e=effectiveness(m.type,d.types);
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
-    if(rng()*100>=m.accuracy){emit('しかし外れてしまった！');continue}
-    const critical=rng()<criticalChance(m);
-    const roll=85+Math.min(15,Math.floor(rng()*16));
-    d.hp=Math.max(0,d.hp-damage(a,d,m,roll,critical));
-    emit(null,400,attackSound(m));
-    if(critical)emit('急所に当たった！');
+    let hits=0;
+    for(let i=0;i<limit&&d.hp>0;i++){
+      if(rng()*100>=m.accuracy){if(!hits)emit('しかし外れてしまった！');break}
+      const critical=rng()<criticalChance(m);
+      const roll=85+Math.min(15,Math.floor(rng()*16));
+      d.hp=Math.max(0,d.hp-damage(a,d,m,roll,critical));
+      hits++;
+      emit(null,400,attackSound(m));
+      if(critical)emit('急所に当たった！');
+    }
+    if(!hits)continue;
     if(e>=4)emit('効果はかなり抜群だ！');
     else if(e>1)emit('効果は抜群だ！');
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
+    if(m.multiHit)emit(`${hits}回当たった！`);
     if(!d.hp){d.fainted=true;emit(`${side===0?'相手の':''}${d.name}は倒れた！`,side===0?2300:1100,'faint')}
   }
   n.turn++;

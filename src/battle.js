@@ -1,9 +1,10 @@
-import {roster,effectiveness} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((2*v+31)*.5)+(i===0?60:5));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0]}});
+import {roster,effectiveness,items} from './data.js';
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((2*v+31)*.5)+(i===0?60:5));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
- return Math.max(1,Math.floor(c.stats[index]*(stage>=0?2+stage:2)/(stage>=0?2:2-stage)));
+ const value=Math.max(1,Math.floor(c.stats[index]*(stage>=0?2+stage:2)/(stage>=0?2:2-stage)));
+ return items[c.item]?.stat===index?Math.floor(value*1.5):value;
 }
 const roundHalfDown=(value,numerator,denominator)=>Math.floor((value*numerator+Math.floor((denominator-1)/2))/denominator);
 export function damage(a,d,m,roll=100,critical=false){
@@ -17,12 +18,23 @@ export function damage(a,d,m,roll=100,critical=false){
  value=Math.floor(value*roll/100);
  if(a.types.includes(m.type))value=roundHalfDown(value,3,2);
  value=Math.floor(value*e);
+ if(a.item==='orb')value=roundHalfDown(value,5324,4096);
  return Math.max(1,value);
 }
 const criticalChance=m=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,m.critStage??(m.name==='サイコカッター'?1:0)))];
 export function start(ids){const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);return {teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null}}
 export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:1;
-export function chooseCpu(s){const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];return {kind:'move',index:a.moves.map((m,i)=>({i,score:Array.from({length:16},(_,i)=>damage(a,d,m,85+i)).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0)})).sort((a,b)=>b.score-a.score)[0].i}}
+export const canUseMove=(c,i)=>!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i;
+const moveScore=(s,a,d,m)=>Array.from({length:16},(_,i)=>damage(a,d,m,85+i)).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
+export function chooseCpu(s){
+ const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];
+ const best=a.moves.map((m,i)=>({i,score:moveScore(s,a,d,m)})).filter(({i})=>canUseMove(a,i)).sort((a,b)=>b.score-a.score)[0];
+ if(best.score===0&&a.lockedMove!=null){
+  const next=s.teams[1].map((c,i)=>({i,score:Math.max(...c.moves.map(m=>moveScore(s,c,d,m)))})).filter(({i,score})=>i!==s.active[1]&&s.teams[1][i].hp>0&&score>0).sort((a,b)=>b.score-a.score)[0];
+  if(next)return {kind:'switch',index:next.i};
+ }
+ return {kind:'move',index:best.i};
+}
 // Attack sound mapping. Individual moves can override the default with sound.
 const attackSounds={
  'のしかかり':'hit','シャドーボール':'explosion','かえんほうしゃ':'explosion','ムーンフォース':'explosion',
@@ -40,6 +52,10 @@ export function resolveSequence(s,action,rng=Math.random){
   const alive=side=>n.teams[side].some(c=>c.hp>0);
   const current=side=>n.teams[side][n.active[side]];
   const emit=(message,delay=850,sound=null)=>{if(message)n.logs.push(message);steps.push({state:structuredClone(n),delay,sound})};
+  const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
+  const faint=(c,side)=>{if(!c.hp&&!c.fainted){c.fainted=true;emit(`${name(c,side)}は倒れた！`,side===1?2300:1100,'faint')}};
+  const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return; c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal')};
+  const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp){c.item=null;heal(c,side,Math.floor(c.maxHp/4),'sitrus')}};
   if(current(0).hp===0){
     if(action.kind!=='switch'||!n.teams[0][action.index]?.hp)return [];
     n.active[0]=action.index;
@@ -47,7 +63,7 @@ export function resolveSequence(s,action,rng=Math.random){
     return steps;
   }
   if(action.kind==='switch'&&(!n.teams[0][action.index]?.hp||action.index===n.active[0]))return [];
-  if(action.kind==='move'&&!current(0).moves[action.index])return [];
+  if(action.kind==='move'&&(!current(0).moves[action.index]||!canUseMove(current(0),action.index)))return [];
   const actions=[action,chooseCpu(n)];
   const priority=side=>actions[side].kind==='switch'?6:current(side).moves[actions[side].index]?.name==='かげうち'?1:0;
   const difference=priority(0)-priority(1)||rankedStat(current(0),5)-rankedStat(current(1),5);
@@ -56,12 +72,13 @@ export function resolveSequence(s,action,rng=Math.random){
     const a=current(side),d=current(1-side),act=actions[side];
     if(a.hp<=0||d.hp<=0)continue;
     if(act.kind==='switch'){
-      a.stages=[0,0,0,0,0,0];
+      a.stages=[0,0,0,0,0,0];a.lockedMove=null;
       n.active[side]=act.index;
       emit(`${a.name}を戻した！ ${current(side).name}を繰り出した！`,850,'switch');
       continue;
     }
-    const m=a.moves[act.index];if(!m)continue;
+    const m=a.moves[act.index];if(!m||!canUseMove(a,act.index))continue;
+    if(items[a.item]?.choice)a.lockedMove=act.index;
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     const limit=hitLimit(n,m);
     if(!limit){emit('しかし上手く決まらなかった！');continue}
@@ -72,10 +89,15 @@ export function resolveSequence(s,action,rng=Math.random){
       if(rng()*100>=m.accuracy){if(!hits)emit('しかし外れてしまった！');break}
       const critical=rng()<criticalChance(m);
       const roll=85+Math.min(15,Math.floor(rng()*16));
-      d.hp=Math.max(0,d.hp-damage(a,d,m,roll,critical));
+      const dealt=damage(a,d,m,roll,critical);
+      const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
+      d.hp=sash?1:Math.max(0,d.hp-dealt);
+      if(sash)d.item=null;
       hits++;
       emit(null,400,attackSound(m));
       if(critical)emit('急所に当たった！');
+      if(sash)emit(`${name(d,1-side)}はきあいのタスキで持ちこたえた！`);
+      berry(d,1-side);
     }
     if(!hits)continue;
     if(e>=4)emit('効果はかなり抜群だ！');
@@ -83,7 +105,15 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
-    if(!d.hp){d.fainted=true;emit(`${side===0?'相手の':''}${d.name}は倒れた！`,side===0?2300:1100,'faint')}
+    faint(d,1-side);
+    if(a.item==='orb'){
+      a.hp=Math.max(0,a.hp-Math.max(1,Math.floor(a.maxHp/10)));
+      emit(`${name(a,side)}はいのちのたまでHPが減った！`,850);
+      faint(a,side);
+    }
+  }
+  if(alive(0)&&alive(1)){
+    for(const side of order){const c=current(side);if(c.item==='leftovers')heal(c,side,Math.floor(c.maxHp/16),'leftovers')}
   }
   n.turn++;
   if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0,n.winner===0?'victory':'defeat')}

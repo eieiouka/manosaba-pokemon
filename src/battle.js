@@ -71,14 +71,15 @@ export function resolveSequence(s,action,rng=Math.random){
     if(c.ability!=='魔女の証'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
     c.revealedAbility=true;
     const ability={side,name:c.name,ability:c.ability};
-    emit(`${name(c,side)}の魔女の証！`,950,null,ability);
+    emit(`${name(c,side)}の魔女の証！`,950,'activate',ability);
     const old=c.stages[3];c.stages[3]=Math.min(6,old+1);
     if(c.stages[3]>old)emit(`${name(c,side)}の特攻が上がった！`,850,'up',ability);
     else emit(`${name(c,side)}の特攻はこれ以上上がらない！`,850,null,ability);
   };
   const faint=(c,side)=>{if(!c.hp&&!c.fainted){c.fainted=true;emit(`${name(c,side)}は倒れた！`,side===1?2300:1100,'faint')}};
-  const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return; c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));c.revealedItem=item;emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal',null,itemNotice(c,side,item))};
-  const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp){c.item=null;heal(c,side,Math.floor(c.maxHp/4),'sitrus')}};
+  const activateItem=(c,side,item)=>{c.revealedItem=item;const notice=itemNotice(c,side,item);emit(`${name(c,side)}の${items[item].name}！`,950,'activate',null,notice);return notice};
+  const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return;const notice=activateItem(c,side,item);if(item==='sitrus')c.item=null;c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal',null,notice)};
+  const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp)heal(c,side,Math.floor(c.maxHp/4),'sitrus')};
   if(current(0).hp===0){
     if(action.kind!=='switch'||!n.teams[0][action.index]?.hp)return [];
     n.active[0]=action.index;
@@ -116,12 +117,18 @@ export function resolveSequence(s,action,rng=Math.random){
       const roll=85+Math.min(15,Math.floor(rng()*16));
       const dealt=damage(a,d,m,roll,critical);
       const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
-      d.hp=sash?1:Math.max(0,d.hp-dealt);
-      if(sash)d.item=null;
       hits++;
-      emit(null,400,attackSound(m));
-      if(critical)emit('急所に当たった！');
-      if(sash){d.revealedItem='sash';emit(`${name(d,1-side)}はきあいのタスキで持ちこたえた！`,850,null,null,itemNotice(d,1-side,'sash'))}
+      if(sash){
+        emit(null,400,attackSound(m));
+        const notice=activateItem(d,1-side,'sash');
+        d.hp=1;d.item=null;
+        emit(`${name(d,1-side)}はきあいのタスキで持ちこたえた！`,850,null,null,notice);
+        if(critical)emit('急所に当たった！');
+      }else{
+        d.hp=Math.max(0,d.hp-dealt);
+        emit(null,400,attackSound(m));
+        if(critical)emit('急所に当たった！');
+      }
       berry(d,1-side);
     }
     if(!hits)continue;
@@ -132,9 +139,9 @@ export function resolveSequence(s,action,rng=Math.random){
     if(m.multiHit)emit(`${hits}回当たった！`);
     faint(d,1-side);
     if(a.item==='orb'){
+      const notice=activateItem(a,side,'orb');
       a.hp=Math.max(0,a.hp-Math.max(1,Math.floor(a.maxHp/10)));
-      a.revealedItem='orb';
-      emit(`${name(a,side)}はいのちのたまでHPが減った！`,850,null,null,itemNotice(a,side,'orb'));
+      emit(`${name(a,side)}はいのちのたまでHPが減った！`,850,null,null,notice);
       faint(a,side);
     }
   }

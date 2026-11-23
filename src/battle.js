@@ -141,8 +141,8 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
-    if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down')}
-    if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance)flinched.add(1-side);
+    if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){emit(null,650);d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down')}
+    if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance){emit(null,650);flinched.add(1-side);}
     faint(d,1-side);
     if(a.item==='orb'){
       const notice=activateItem(a,side,'orb');

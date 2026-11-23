@@ -67,7 +67,7 @@ function SelectionTimer({onExpire}){
  const [seconds,setSeconds]=useState(60);
  useEffect(()=>{
   const deadline=Date.now()+60000;
-  const tick=()=>{const remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));setSeconds(remaining);if(remaining===0){clearInterval(timer);onExpire()}};
+  const tick=()=>{const remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));setSeconds(remaining);if(remaining===0){clearInterval(timer);/* 自動選出は一時停止中：再開時は onExpire() を呼ぶ */}};
   const timer=setInterval(tick,200);
   return()=>clearInterval(timer);
  },[onExpire]);

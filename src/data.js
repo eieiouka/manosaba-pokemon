@@ -1,9 +1,9 @@
 // 仮設定。種族値は HP / A / B / C / D / S の順。
-const move=(name,type,category,power,accuracy=100)=>({name,type,category,power,accuracy});
+const move=(name,type,category,power,accuracy=100,extra={})=>({name,type,category,power,accuracy,...extra});
 export const types={normal:'ノーマル',fire:'ほのお',water:'みず',electric:'でんき',grass:'くさ',ice:'こおり',fighting:'かくとう',poison:'どく',ground:'じめん',flying:'ひこう',psychic:'エスパー',bug:'むし',rock:'いわ',ghost:'ゴースト',dragon:'ドラゴン',dark:'あく',steel:'はがね',fairy:'フェアリー'};
 export const colors={normal:'#92999e',fire:'#dd693b',water:'#4189da',electric:'#c6a52c',grass:'#5d9c49',ice:'#60a5b9',fighting:'#b44f42',poison:'#9655ac',ground:'#b99153',flying:'#7d8ac9',psychic:'#cf548c',bug:'#82943c',rock:'#998b52',ghost:'#7462a2',dragon:'#6551c9',dark:'#54475e',steel:'#708897',fairy:'#cb79b0'};
 export const roster=[
-{id:'ema',name:'桜羽エマ',short:'エマ',mark:'桜',color:'#e89aaa',types:['normal'],ability:'なし',base:[83,62,78,132,80,65],moves:[move('のしかかり','normal','physical',85),move('シャドーボール','ghost','special',80),move('かえんほうしゃ','fire','special',90),move('ムーンフォース','fairy','special',95)]},
+{id:'ema',name:'桜羽エマ',short:'エマ',mark:'桜',color:'#e89aaa',types:['normal','fairy'],ability:'なし',base:[83,62,78,132,80,65],moves:[move('魔女殺し','fairy','special',60,90,{multiHit:'fainted',sound:'gun_shot',description:'敵味方の倒れた魔法少女の人数だけ連続攻撃する。1発ごとに命中判定を行い、外すと攻撃が終了する。誰も倒れていない場合は失敗する。'}),move('シャドーボール','ghost','special',80),move('かえんほうしゃ','fire','special',90),move('ムーンフォース','fairy','special',95)]},
 {id:'sherry',name:'橘シェリー',short:'シェリー',mark:'橘',color:'#edb77a',types:['psychic'],ability:'なし',base:[95,65,100,90,110,80],moves:[move('サイコキネシス','psychic','special',90),move('マジカルシャイン','fairy','special',80),move('10まんボルト','electric','special',90),move('れいとうビーム','ice','special',90)]},
 {id:'hanna',name:'遠野ハンナ',short:'ハンナ',mark:'羽',color:'#8db5df',types:['flying'],ability:'なし',base:[75,85,70,110,80,120],moves:[move('エアスラッシュ','flying','special',75,95),move('ぼうふう','flying','special',110,70),move('ねっぷう','fire','special',95,90),move('エナジーボール','grass','special',90)]},
 {id:'hiro',name:'二階堂ヒロ',short:'ヒロ',mark:'衡',color:'#baa8df',types:['psychic'],ability:'なし',base:[85,100,90,90,100,85],moves:[move('サイコカッター','psychic','physical',70),move('インファイト','fighting','physical',120),move('アイアンヘッド','steel','physical',80),move('シャドーボール','ghost','special',80)]},

@@ -120,9 +120,10 @@ export function resolveSequence(s,action,rng=Math.random){
       const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
       hits++;
       if(sash){
+        d.hp=1;
         emit(null,400,attackSound(m));
         const notice=activateItem(d,1-side,'sash');
-        d.hp=1;d.item=null;
+        d.item=null;
         emit(`${name(d,1-side)}はきあいのタスキで持ちこたえた！`,850,null,null,notice);
         if(critical)emit('急所に当たった！');
       }else{

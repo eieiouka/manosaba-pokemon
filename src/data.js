@@ -2,13 +2,22 @@
 const move=(name,type,category,power,accuracy=100,extra={})=>({name,type,category,power,accuracy,...extra});
 export const types={normal:'ノーマル',fire:'ほのお',water:'みず',electric:'でんき',grass:'くさ',ice:'こおり',fighting:'かくとう',poison:'どく',ground:'じめん',flying:'ひこう',psychic:'エスパー',bug:'むし',rock:'いわ',ghost:'ゴースト',dragon:'ドラゴン',dark:'あく',steel:'はがね',fairy:'フェアリー'};
 export const colors={normal:'#92999e',fire:'#dd693b',water:'#4189da',electric:'#c6a52c',grass:'#5d9c49',ice:'#60a5b9',fighting:'#b44f42',poison:'#9655ac',ground:'#b99153',flying:'#7d8ac9',psychic:'#cf548c',bug:'#82943c',rock:'#998b52',ghost:'#7462a2',dragon:'#6551c9',dark:'#54475e',steel:'#708897',fairy:'#cb79b0'};
+export const items={
+ scarf:{name:'こだわりスカーフ',description:'素早さが1.5倍になるが、最初に選んだ技しか使えなくなる。交代すると技の固定が解除される。',stat:5,choice:true},
+ specs:{name:'こだわりメガネ',description:'特攻が1.5倍になるが、最初に選んだ技しか使えなくなる。交代すると技の固定が解除される。',stat:3,choice:true},
+ band:{name:'こだわりハチマキ',description:'攻撃が1.5倍になるが、最初に選んだ技しか使えなくなる。交代すると技の固定が解除される。',stat:1,choice:true},
+ sash:{name:'きあいのタスキ',description:'HPが満タンのとき、倒れるダメージを受けてもHPが1残る。一度使うとなくなる。'},
+ orb:{name:'いのちのたま',description:'攻撃技のダメージが1.3倍になる。攻撃が命中すると、技の終了後に最大HPの1/10を失う。'},
+ leftovers:{name:'たべのこし',description:'毎ターン終了時に最大HPの1/16を回復する。'},
+ sitrus:{name:'オボンのみ',description:'HPが最大HPの半分以下になると、最大HPの1/4を回復する。一度使うとなくなる。'}
+};
 export const roster=[
-{id:'ema',name:'桜羽エマ',short:'エマ',mark:'桜',color:'#e89aaa',types:['normal','fairy'],ability:'なし',base:[83,62,78,132,80,65],moves:[move('魔女殺し','fairy','special',60,90,{multiHit:'fainted',sound:'gun_shot',description:'敵味方の倒れた魔法少女の人数だけ連続攻撃する。1発ごとに命中判定を行い、外すと攻撃が終了する。誰も倒れていない場合は失敗する。'}),move('シャドーボール','ghost','special',80),move('かえんほうしゃ','fire','special',90),move('ムーンフォース','fairy','special',95)]},
-{id:'sherry',name:'橘シェリー',short:'シェリー',mark:'橘',color:'#edb77a',types:['psychic'],ability:'なし',base:[95,65,100,90,110,80],moves:[move('サイコキネシス','psychic','special',90),move('マジカルシャイン','fairy','special',80),move('10まんボルト','electric','special',90),move('れいとうビーム','ice','special',90)]},
-{id:'hanna',name:'遠野ハンナ',short:'ハンナ',mark:'羽',color:'#8db5df',types:['flying'],ability:'なし',base:[75,85,70,110,80,120],moves:[move('エアスラッシュ','flying','special',75,95),move('ぼうふう','flying','special',110,70),move('ねっぷう','fire','special',95,90),move('エナジーボール','grass','special',90)]},
-{id:'hiro',name:'二階堂ヒロ',short:'ヒロ',mark:'衡',color:'#baa8df',types:['psychic'],ability:'なし',base:[85,100,90,90,100,85],moves:[move('サイコカッター','psychic','physical',70),move('インファイト','fighting','physical',120),move('アイアンヘッド','steel','physical',80),move('シャドーボール','ghost','special',80)]},
-{id:'margo',name:'宝生マーゴ',short:'マーゴ',mark:'影',color:'#b58bb7',types:['ghost','dark'],ability:'なし',base:[75,125,75,75,80,105],moves:[move('かげうち','ghost','physical',40),move('かみくだく','dark','physical',80),move('じゃれつく','fairy','physical',90,90),move('どくづき','poison','physical',80)]},
-{id:'nanoka',name:'黒部ナノカ',short:'ナノカ',mark:'黒',color:'#a7c9bf',types:['steel'],ability:'なし',base:[80,75,105,125,90,65],moves:[move('ラスターカノン','steel','special',80),move('10まんボルト','electric','special',90),move('あくのはどう','dark','special',80),move('だいちのちから','ground','special',90)]}
+{id:'ema',item:'scarf',name:'桜羽エマ',short:'エマ',mark:'桜',color:'#e89aaa',types:['normal','fairy'],ability:'なし',base:[83,62,78,132,80,65],moves:[move('魔女殺し','fairy','special',60,90,{multiHit:'fainted',sound:'gun_shot',description:'敵味方の倒れた魔法少女の人数だけ連続攻撃する。1発ごとに命中判定を行い、外すと攻撃が終了する。誰も倒れていない場合は失敗する。'}),move('シャドーボール','ghost','special',80),move('かえんほうしゃ','fire','special',90),move('ムーンフォース','fairy','special',95)]},
+{id:'sherry',item:'leftovers',name:'橘シェリー',short:'シェリー',mark:'橘',color:'#edb77a',types:['psychic'],ability:'なし',base:[95,65,100,90,110,80],moves:[move('サイコキネシス','psychic','special',90),move('マジカルシャイン','fairy','special',80),move('10まんボルト','electric','special',90),move('れいとうビーム','ice','special',90)]},
+{id:'hanna',item:'specs',name:'遠野ハンナ',short:'ハンナ',mark:'羽',color:'#8db5df',types:['flying'],ability:'なし',base:[75,85,70,110,80,120],moves:[move('エアスラッシュ','flying','special',75,95),move('ぼうふう','flying','special',110,70),move('ねっぷう','fire','special',95,90),move('エナジーボール','grass','special',90)]},
+{id:'hiro',item:'band',name:'二階堂ヒロ',short:'ヒロ',mark:'衡',color:'#baa8df',types:['psychic'],ability:'なし',base:[85,100,90,90,100,85],moves:[move('サイコカッター','psychic','physical',70),move('インファイト','fighting','physical',120),move('アイアンヘッド','steel','physical',80),move('シャドーボール','ghost','special',80)]},
+{id:'margo',item:'sash',name:'宝生マーゴ',short:'マーゴ',mark:'影',color:'#b58bb7',types:['ghost','dark'],ability:'なし',base:[75,125,75,75,80,105],moves:[move('かげうち','ghost','physical',40),move('かみくだく','dark','physical',80),move('じゃれつく','fairy','physical',90,90),move('どくづき','poison','physical',80)]},
+{id:'nanoka',item:'orb',name:'黒部ナノカ',short:'ナノカ',mark:'黒',color:'#a7c9bf',types:['steel'],ability:'なし',base:[80,75,105,125,90,65],moves:[move('ラスターカノン','steel','special',80),move('10まんボルト','electric','special',90),move('あくのはどう','dark','special',80),move('だいちのちから','ground','special',90)]}
 ];
 // 攻撃側のタイプ相性。記載なしは等倍。
 const chart={

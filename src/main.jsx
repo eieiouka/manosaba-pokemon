@@ -33,17 +33,23 @@ function statRange(base,index){
  const max=index===0?base+107:Math.floor((base+52)*11/10);
  return <>{min}<span style={{color:"#fff"}}>～</span>{max}</>;
 }
-function InfoModal({character,onClose,inBattle,opponent=false}){
+function MoveButton({m,disabled,onUse,onInspect}){
+ const hold=useRef(null),pressed=useRef(false),origin=useRef(null);
+ const cancel=()=>{clearTimeout(hold.current);hold.current=null};
+ useEffect(()=>()=>clearTimeout(hold.current),[]);
+ return <button type="button" className="move-button" disabled={disabled} onPointerDown={e=>{if(e.button!==0)return;cancel();pressed.current=false;origin.current=[e.clientX,e.clientY];hold.current=setTimeout(()=>{pressed.current=true;onInspect(m)},500)}} onPointerMove={e=>{if(origin.current&&Math.hypot(e.clientX-origin.current[0],e.clientY-origin.current[1])>10)cancel()}} onPointerUp={cancel} onPointerCancel={cancel} onPointerLeave={cancel} onContextMenu={e=>e.preventDefault()} onClick={e=>{if(pressed.current){pressed.current=false;e.preventDefault();return}onUse()}}><div><Type type={m.type}/><small>{m.category==='physical'?'物理':m.category==='status'?'変化':'特殊'}</small></div><strong>{m.name}</strong></button>
+}
+function InfoModal({character,move,onClose,inBattle,opponent=false}){
  const [statTab,setStatTab]=useState('base');
  const closeRef=useRef(null);
  useEffect(()=>{const previous=document.activeElement;closeRef.current?.focus();const key=e=>{if(e.key==='Escape')onClose()};window.addEventListener('keydown',key);return()=>{window.removeEventListener('keydown',key);previous?.focus?.()}},[onClose]);
- return createPortal(<div className="info-backdrop" onClick={onClose}><section role="dialog" aria-modal="true" aria-label={character?character.name+'の種族値':'How to play'} className="info-dialog" onClick={e=>e.stopPropagation()}>
- <div className="info-heading"><h2>{character?character.name:'How to play'}</h2><button ref={closeRef} className="ghost" onClick={onClose}>閉じる</button></div>
- {character?<><div className="info-character"><Portrait c={character}/><div className="type-list">{character.types.map(t=><Type key={t} type={t}/>)}</div></div>
+ return createPortal(<div className="info-backdrop" onClick={onClose}><section role="dialog" aria-modal="true" aria-label={move?move.name+'の詳細':character?character.name+'の種族値':'How to play'} className="info-dialog" onClick={e=>e.stopPropagation()}>
+ <div className="info-heading"><h2>{move?move.name:character?character.name:'How to play'}</h2><button ref={closeRef} className="ghost" onClick={onClose}>閉じる</button></div>
+ {move?<><div className="type-list"><Type type={move.type}/><span>{move.category==='physical'?'物理':move.category==='status'?'変化':'特殊'}</span></div><dl className="stats-list move-stats"><div><dt>威力</dt><dd>{move.power||'－'}</dd></div><div><dt>命中</dt><dd>{move.accuracy??'－'}</dd></div></dl><h3>技の効果</h3><p>{move.description??(move.name==='かげうち'?'相手より先に攻撃する。':move.name==='サイコカッター'?'急所に当たりやすい攻撃。':'相手に'+(move.category==='physical'?'物理':'特殊')+'ダメージを与える。')}</p></>:character?<><div className="info-character"><Portrait c={character}/><div className="type-list">{character.types.map(t=><Type key={t} type={t}/>)}</div></div>
  <div className="stat-tabs" role="group" aria-label="能力表示">{[['base','種族値'],['actual','実数値'],['stage','能力変化']].map(([id,label])=><button key={id} type="button" aria-pressed={statTab===id} className={statTab===id?'active':''} onClick={()=>setStatTab(id)}>{label}</button>)}</div>
  <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{statLabels.map((label,i)=><div key={label}><dt>{label}</dt><dd style={statTab==='actual'?{color:'#f48bbd',...(opponent?{whiteSpace:'nowrap'}:{})}:undefined}>{statTab==='base'?character.base[i]:statTab==='actual'?(opponent?statRange(character.base[i],i):(character.stats??makeTeam([character.id])[0].stats)[i]):<StageMarks stage={i===0?0:character.stages?.[i]??0}/>}</dd></div>)}</dl></>:<>
  {inBattle?<><h3>毎ターンの行動</h3><p>技を選ぶか、控えの魔法少女に交代します。基本的に素早さの高い側から行動しますが、先制技や交代は優先されます。</p>
- <h3>勝利条件</h3><p>魔法少女のHPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p></>:<><h3>選出</h3><p>6人の魔法少女から、バトルに参加させる3人を選びます。1人目に選んだ魔法少女が最初に場に出ます。</p></>}
+ <h3>技の確認</h3><p>技ボタンを長押しすると、威力・命中・効果を確認できます。</p><h3>勝利条件</h3><p>魔法少女のHPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p></>:<><h3>選出</h3><p>6人の魔法少女から、バトルに参加させる3人を選びます。1人目に選んだ魔法少女が最初に場に出ます。</p></>}
  <h3>ステータスの確認</h3><p>立ち絵を長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。</p>
  </>}
  </section></div>,document.body)
@@ -106,9 +112,9 @@ function App(){
  </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="fighter-meta"><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><div className="hp" key={c.id}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div></div><Portrait c={c} fainted={!!c.fainted} onInspect={c=>inspect(c,side===1)}/></div>})}</div>
  <div className="log" aria-live="polite">{battle.logs.at(-1)}</div>
  {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp?'on':''} disabled={busy} onClick={()=>setTab('switch')}>交代</button><BattleTimer busy={busy}/></div>
- {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} aria-disabled={busy||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} onInspect={inspect}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><button key={m.name} disabled={busy} onClick={()=>act({kind:'move',index:i})}><div><Type type={m.type}/><small>{m.category==='physical'?'物理':'特殊'}</small></div><strong>{m.name}</strong></button>)}</div>}</section>}
+ {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} aria-disabled={busy||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} onInspect={inspect}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><MoveButton key={active[0].id+':'+m.name} m={m} disabled={busy} onUse={()=>act({kind:'move',index:i})} onInspect={move=>setInfo({move})}/>)}</div>}</section>}
  </>}
- {info&&<InfoModal character={info.character} onClose={closeInfo} inBattle={!!battle} opponent={info.opponent}/>}
+ {info&&<InfoModal move={info.move} character={info.character} onClose={closeInfo} inBattle={!!battle} opponent={info.opponent}/>}
  </main>
 }
 createRoot(document.getElementById('root')).render(<App/>);

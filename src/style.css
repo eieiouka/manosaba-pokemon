@@ -185,3 +185,6 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .moves .damage-range{color:#f9df69;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .moves button>div{gap:5px;flex-wrap:wrap}
 @media(max-width:680px){.moves .damage-range{font-size:12px}}
+
+.item-notice{border-color:#d8b65c;background:#332d23f5}
+.item-notice small{color:#f1ddb2}

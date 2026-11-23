@@ -172,3 +172,11 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .side0 .ability-notice{right:auto;left:0}
 .ability-notice small{font-size:11px;color:#e0d2fb}
 .ability-notice strong{color:#f9df69;font-size:16px}
+
+/* Ability detail toggle in character status. */
+.ability-info-button{margin-left:auto;flex:none;display:grid;gap:4px;text-align:left;background:#181825;border:1px solid #665781;border-radius:8px;padding:8px 10px;color:#f3f0fa}
+.ability-info-button small{color:#c9b5fb;font-size:11px}
+.ability-info-button strong{font-size:14px;color:#f9df69}
+.ability-info-button[aria-expanded=true]{border-color:#b6a0ef}
+.ability-description{padding:6px 12px;border-radius:8px;background:#181825;border:1px solid #403b54}
+@media(max-width:680px){.info-character{gap:8px}.info-character .portrait{width:54px;height:54px}.ability-info-button{padding:7px 8px}.ability-info-button strong{font-size:13px}}

@@ -160,3 +160,8 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
  .selection-bar{padding-top:8px}
  .selection-bar .primary{padding:12px 16px}
 }
+
+/* Own held item below the types in battle status. */
+.info-character-meta{display:grid;gap:6px;min-width:0}
+.info-character-meta .held-item{font-size:14px}
+.held-item.spent{color:#726c80}

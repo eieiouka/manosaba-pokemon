@@ -3,17 +3,17 @@ export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const 
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
- const value=Math.max(1,Math.floor(c.stats[index]*(stage>=0?2+stage:2)/(stage>=0?2:2-stage)));
+ const value=Math.max(1,Math.floor(c.stats[index]*(stage>=0?2+stage:2)/(stage>=0?2:2-stage)))*(index===1&&c.ability==='ちからもち'?2:1);
  return items[c.item]?.stat===index?Math.floor(value*1.5):value;
 }
 const roundHalfDown=(value,numerator,denominator)=>Math.floor((value*numerator+Math.floor((denominator-1)/2))/denominator);
-export function damage(a,d,m,roll=100,critical=false){
+export function damage(a,d,m,roll=100,critical=false,second=false){
  const e=effectiveness(m.type,d.types);
  if(!e)return 0;
  const i=m.category==='physical'?1:3;
  const attack=rankedStat(a,i,critical&&(a.stages?.[i]??0)<0);
  const defense=rankedStat(d,i+1,critical&&(d.stages?.[i+1]??0)>0);
- let value=Math.floor(Math.floor(22*m.power*attack/defense)/50)+2;
+ let value=Math.floor(Math.floor(22*m.power*(m.latePower&&second?2:1)*attack/defense)/50)+2;
  if(critical)value=roundHalfDown(value,3,2);
  value=Math.floor(value*roll/100);
  if(a.types.includes(m.type))value=roundHalfDown(value,3,2);
@@ -35,10 +35,10 @@ export function damageRange(s,a,d,m){
  const i=m.category==='physical'?2:4;
  const target=invested=>({...d,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):v+20)});
  const low=target(true),high=target(false);
- return {label,min:Math.floor(damage(a,low,m,85)*100/low.stats[0]),max:Math.floor(damage(a,high,m,100)*100/high.stats[0])};
+ return {label,min:Math.floor(damage(a,low,m,85)*100/low.stats[0]),max:Math.floor(damage(a,high,m,100,false,!!m.latePower)*100/high.stats[0])};
 }
 export const canUseMove=(c,i)=>!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i;
-const moveScore=(s,a,d,m)=>Array.from({length:16},(_,i)=>damage(a,d,m,85+i)).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
+const moveScore=(s,a,d,m)=>Array.from({length:16},(_,i)=>damage(a,d,m,85+i,false,rankedStat(a,5)<rankedStat(d,5))).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
 export function chooseCpu(s){
  const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];
  const best=a.moves.map((m,i)=>({i,score:moveScore(s,a,d,m)})).filter(({i})=>canUseMove(a,i)).sort((a,b)=>b.score-a.score)[0];
@@ -91,7 +91,7 @@ export function resolveSequence(s,action,rng=Math.random){
   if(action.kind==='switch'&&(!n.teams[0][action.index]?.hp||action.index===n.active[0]))return [];
   if(action.kind==='move'&&(!current(0).moves[action.index]||!canUseMove(current(0),action.index)))return [];
   const actions=[action,chooseCpu(n)];
-  const priority=side=>actions[side].kind==='switch'?6:current(side).moves[actions[side].index]?.name==='かげうち'?1:0;
+  const priority=side=>actions[side].kind==='switch'?6:(current(side).moves[actions[side].index]?.priority??(current(side).moves[actions[side].index]?.name==='かげうち'?1:0));
   const difference=priority(0)-priority(1)||rankedStat(current(0),5)-rankedStat(current(1),5);
   const order=difference>0?[0,1]:difference<0?[1,0]:rng()<.5?[0,1]:[1,0];
   const flinched=new Set();
@@ -118,7 +118,7 @@ export function resolveSequence(s,action,rng=Math.random){
       if(rng()*100>=m.accuracy){if(!hits)emit('しかし外れてしまった！');break}
       const critical=rng()<criticalChance(m);
       const roll=85+Math.min(15,Math.floor(rng()*16));
-      const dealt=damage(a,d,m,roll,critical);
+      const dealt=damage(a,d,m,roll,critical,side===order[1]);
       const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
       hits++;
       if(sash){
@@ -142,6 +142,7 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
     if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){emit(null,650);d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down',null,null,{side:1-side,stat:'特攻',delta:-1})}
+    if(d.hp>0&&m.lowerAtkChance&&d.stages[1]>-6&&rng()*100<m.lowerAtkChance){emit(null,650);d.stages[1]--;emit(`${name(d,1-side)}の攻撃が下がった！`,850,'down',null,null,{side:1-side,stat:'攻撃',delta:-1})}
     if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance){emit(null,650);flinched.add(1-side);}
     faint(d,1-side);
     if(a.item==='orb'){

@@ -1,5 +1,5 @@
 import {roster,effectiveness,items} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,initialItem:c.item??null,revealedItem:null}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,initialItem:c.item??null,revealedItem:null,revealedAbility:false}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -24,6 +24,18 @@ export function damage(a,d,m,roll=100,critical=false){
 const criticalChance=m=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,m.critStage??(m.name==='サイコカッター'?1:0)))];
 export function start(ids){const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);return {teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null}}
 export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:1;
+// Estimate damage against the possible level-50 HP and relevant defense spreads.
+export function damageRange(s,a,d,m){
+ const e=effectiveness(m.type,d.types);
+ const hits=hitLimit(s,m);
+ if(m.category==='status')return {label:'変化',min:null,max:null};
+ const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
+ if(!e||!hits)return {label,min:0,max:0};
+ const i=m.category==='physical'?2:4;
+ const target=invested=>({...d,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):v+20)});
+ const low=target(true),high=target(false);
+ return {label,min:Math.floor(damage(a,low,m,85)*hits*100/low.stats[0]),max:Math.floor(damage(a,high,m,100)*hits*100/high.stats[0])};
+}
 export const canUseMove=(c,i)=>!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i;
 const moveScore=(s,a,d,m)=>Array.from({length:16},(_,i)=>damage(a,d,m,85+i)).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
 export function chooseCpu(s){
@@ -56,6 +68,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const onEntry=side=>{
     const c=current(side);
     if(c.ability!=='魔女の証'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
+    c.revealedAbility=true;
     const ability={side,name:c.name,ability:c.ability};
     emit(`${name(c,side)}の魔女の証！`,950,null,ability);
     const old=c.stages[3];c.stages[3]=Math.min(6,old+1);

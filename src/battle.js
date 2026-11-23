@@ -1,5 +1,5 @@
 import {roster,effectiveness,items} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((2*v+31)*.5)+(i===0?60:5));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,initialItem:c.item??null,revealedItem:null}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,initialItem:c.item??null,revealedItem:null}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -51,8 +51,17 @@ export function resolveSequence(s,action,rng=Math.random){
   const n=structuredClone(s),steps=[];
   const alive=side=>n.teams[side].some(c=>c.hp>0);
   const current=side=>n.teams[side][n.active[side]];
-  const emit=(message,delay=850,sound=null)=>{if(message)n.logs.push(message);steps.push({state:structuredClone(n),delay,sound})};
+  const emit=(message,delay=850,sound=null,ability=null)=>{if(message)n.logs.push(message);steps.push({state:structuredClone(n),delay,sound,ability})};
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
+  const onEntry=side=>{
+    const c=current(side);
+    if(c.ability!=='魔女の証'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
+    const ability={side,name:c.name,ability:c.ability};
+    emit(`${name(c,side)}の魔女の証！`,950,null,ability);
+    const old=c.stages[3];c.stages[3]=Math.min(6,old+1);
+    if(c.stages[3]>old)emit(`${name(c,side)}の特攻が上がった！`,850,'up',ability);
+    else emit(`${name(c,side)}の特攻はこれ以上上がらない！`,850,null,ability);
+  };
   const faint=(c,side)=>{if(!c.hp&&!c.fainted){c.fainted=true;emit(`${name(c,side)}は倒れた！`,side===1?2300:1100,'faint')}};
   const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return; c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));c.revealedItem=item;emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal')};
   const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp){c.item=null;heal(c,side,Math.floor(c.maxHp/4),'sitrus')}};
@@ -60,6 +69,7 @@ export function resolveSequence(s,action,rng=Math.random){
     if(action.kind!=='switch'||!n.teams[0][action.index]?.hp)return [];
     n.active[0]=action.index;
     emit(`いけ！ ${current(0).name}！`,850,'switch');
+    onEntry(0);
     return steps;
   }
   if(action.kind==='switch'&&(!n.teams[0][action.index]?.hp||action.index===n.active[0]))return [];
@@ -75,6 +85,7 @@ export function resolveSequence(s,action,rng=Math.random){
       a.stages=[0,0,0,0,0,0];a.lockedMove=null;
       n.active[side]=act.index;
       emit(`${a.name}を戻した！ ${current(side).name}を繰り出した！`,850,'switch');
+      onEntry(side);
       continue;
     }
     const m=a.moves[act.index];if(!m||!canUseMove(a,act.index))continue;
@@ -121,6 +132,7 @@ export function resolveSequence(s,action,rng=Math.random){
   else if(!current(1).hp){
     n.active[1]=n.teams[1].findIndex(c=>c.hp>0);
     emit(`CPUは ${current(1).name}を繰り出した！`,850,'switch');
+    onEntry(1);
   }else emit(null,0);
   return steps;
 }

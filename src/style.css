@@ -135,3 +135,9 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 /* Long-press move details */
 .move-button{touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .move-stats{margin-top:14px}
+
+/* Held item readout on the selection cards. */
+.held-item{display:block;width:fit-content;max-width:100%;font-size:13px;color:#f6d477;font-weight:700;line-height:1.3;overflow-wrap:anywhere;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.held-item.empty{color:#aaa2bb;font-weight:400}
+.card-info{min-width:0;gap:4px}
+@media(max-width:680px){.held-item{font-size:12px}}

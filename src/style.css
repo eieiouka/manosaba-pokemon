@@ -165,3 +165,10 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .info-character-meta{display:grid;gap:6px;min-width:0}
 .info-character-meta .held-item{font-size:14px}
 .held-item.spent{color:#726c80}
+
+/* Ability activation banner beside the active character. */
+.fighter{position:relative}
+.ability-notice{position:absolute;top:0;right:0;z-index:2;display:grid;gap:2px;padding:6px 12px;border:1px solid #c2a4f8;border-radius:8px;background:#302543f5;box-shadow:0 3px 12px #0007;pointer-events:none;line-height:1.2}
+.side0 .ability-notice{right:auto;left:0}
+.ability-notice small{font-size:11px;color:#e0d2fb}
+.ability-notice strong{color:#f9df69;font-size:16px}

@@ -44,7 +44,7 @@ function MoveButton({m,range,disabled,locked,onUse,onInspect}){
  const hold=useRef(null),pressed=useRef(false),origin=useRef(null);
  const cancel=()=>{clearTimeout(hold.current);hold.current=null};
  useEffect(()=>()=>clearTimeout(hold.current),[]);
- return <button type="button" className="move-button" disabled={disabled} aria-disabled={locked||undefined} onPointerDown={e=>{if(e.button!==0)return;cancel();pressed.current=false;origin.current=[e.clientX,e.clientY];hold.current=setTimeout(()=>{pressed.current=true;onInspect(m)},500)}} onPointerMove={e=>{if(origin.current&&Math.hypot(e.clientX-origin.current[0],e.clientY-origin.current[1])>10)cancel()}} onPointerUp={cancel} onPointerCancel={cancel} onPointerLeave={cancel} onContextMenu={e=>e.preventDefault()} onClick={e=>{if(pressed.current){pressed.current=false;e.preventDefault();return}if(!locked)onUse()}}><div><Type type={m.type}/><small className="damage-range">{range.label}{range.min!==null&&<>{range.label?'：':''}{range.min}～{range.max}%ダメージ</>}</small></div><strong>{m.name}</strong></button>
+ return <button type="button" className="move-button" disabled={disabled} aria-disabled={locked||undefined} onPointerDown={e=>{if(e.button!==0)return;cancel();pressed.current=false;origin.current=[e.clientX,e.clientY];hold.current=setTimeout(()=>{pressed.current=true;onInspect(m)},500)}} onPointerMove={e=>{if(origin.current&&Math.hypot(e.clientX-origin.current[0],e.clientY-origin.current[1])>10)cancel()}} onPointerUp={cancel} onPointerCancel={cancel} onPointerLeave={cancel} onContextMenu={e=>e.preventDefault()} onClick={e=>{if(pressed.current){pressed.current=false;e.preventDefault();return}if(!locked)onUse()}}><div><Type type={m.type}/><small className="damage-range">{range.label}{range.min!==null&&<>{range.label?'：':''}{range.label==='無効'?'0':`${range.min}～${range.max}`}%ダメージ</>}</small></div><strong>{m.name}</strong></button>
 }
 function InfoModal({character,move,item,onClose,inBattle,opponent=false}){
  const [statTab,setStatTab]=useState('base');
@@ -94,6 +94,7 @@ function App(){
  const toggle=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):s.length<3?[...s,id]:s);
  const [busy,setBusy]=useState(false);
  const [abilityNotice,setAbilityNotice]=useState(null);
+ const [itemNotice,setItemNotice]=useState(null);
  const busyRef=useRef(false),playbackTimer=useRef(null);
  useEffect(()=>()=>clearTimeout(playbackTimer.current),[]);
  const act=(action)=>{
@@ -103,8 +104,8 @@ function App(){
   if(!steps.length)return;
   busyRef.current=true;setBusy(true);setTab('move');
   const play=i=>{
-   if(i>=steps.length){busyRef.current=false;setBusy(false);setAbilityNotice(null);return}
-   setBattle(steps[i].state);setAbilityNotice(steps[i].ability??null);
+   if(i>=steps.length){busyRef.current=false;setBusy(false);setAbilityNotice(null);setItemNotice(null);return}
+   setBattle(steps[i].state);setAbilityNotice(steps[i].ability??null);setItemNotice(steps[i].itemNotice??null);
    if(steps[i].sound)playAttackSound(steps[i].sound);
    playbackTimer.current=setTimeout(()=>play(i+1),steps[i].delay);
   };
@@ -118,7 +119,7 @@ function App(){
  
  <div className="cards">{roster.map(c=>{const index=selected.indexOf(c.id);return <button key={c.id} className={'card '+(index>=0?'selected':'')} aria-disabled={index<0&&selected.length===3} onClick={()=>toggle(c.id)}><Portrait c={c} onInspect={inspect}/><div className="card-info"><strong>{c.name}</strong><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><ItemLabel item={c.item} onInspect={item=>setInfo({item})}/></div>{index>=0&&<span className="num" style={{fontSize:"var(--selection-number-size, 3.0375em)",lineHeight:1}}>{index+1}</span>}</button>})}</div>
  <div className="selection-bar" style={{justifyContent:'flex-end'}}><button className="primary" disabled={selected.length!==3} onClick={()=>{unlockAttackAudio();setBattle(b=>b??start(selected))}}>対戦開始</button></div>
- </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="fighter-meta"><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><div className="hp" key={c.id}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div></div><Portrait c={c} fainted={!!c.fainted} onInspect={c=>inspect(c,side===1)}/>{abilityNotice?.side===side&&<div className="ability-notice" role="status"><small>{c.name}の特性</small><strong>{abilityNotice.ability}</strong></div>}</div>})}</div>
+ </>:<><div className="arena" style={{marginTop:10}}>{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} </h2><div className="fighter-meta"><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><div className="hp" key={c.id}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div></div><Portrait c={c} fainted={!!c.fainted} onInspect={c=>inspect(c,side===1)}/>{abilityNotice?.side===side&&<div className="ability-notice" role="status"><small>{c.name}の特性</small><strong>{abilityNotice.ability}</strong></div>}{itemNotice?.side===side&&<div className="ability-notice item-notice" role="status"><small>{c.name}の持ち物</small><strong>{itemNotice.item}</strong></div>}</div>})}</div>
  <div className="log" aria-live="polite">{battle.logs.at(-1)}</div>
  {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp?'on':''} disabled={busy} onClick={()=>setTab('switch')}>交代</button><BattleTimer busy={busy} turn={battle.turn}/></div>
  {!active[0].hp||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} aria-disabled={busy||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} onInspect={inspect}/><strong>{c.short}</strong><small>{c.hp}/{c.maxHp} HP</small></button>)}</div></>:<div className="moves">{active[0].moves.map((m,i)=><MoveButton key={active[0].id+':'+m.name} m={m} range={damageRange(battle,active[0],active[1],m)} disabled={busy} locked={!canUseMove(active[0],i)} onUse={()=>act({kind:'move',index:i})} onInspect={move=>setInfo({move})}/>)}</div>}</section>}

@@ -1,5 +1,5 @@
 import {roster,effectiveness,items} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((2*v+31)*.5)+(i===0?60:5));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((2*v+31)*.5)+(i===0?60:5));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,initialItem:c.item??null,revealedItem:null}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -54,7 +54,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const emit=(message,delay=850,sound=null)=>{if(message)n.logs.push(message);steps.push({state:structuredClone(n),delay,sound})};
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const faint=(c,side)=>{if(!c.hp&&!c.fainted){c.fainted=true;emit(`${name(c,side)}は倒れた！`,side===1?2300:1100,'faint')}};
-  const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return; c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal')};
+  const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return; c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));c.revealedItem=item;emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal')};
   const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp){c.item=null;heal(c,side,Math.floor(c.maxHp/4),'sitrus')}};
   if(current(0).hp===0){
     if(action.kind!=='switch'||!n.teams[0][action.index]?.hp)return [];
@@ -96,7 +96,7 @@ export function resolveSequence(s,action,rng=Math.random){
       hits++;
       emit(null,400,attackSound(m));
       if(critical)emit('急所に当たった！');
-      if(sash)emit(`${name(d,1-side)}はきあいのタスキで持ちこたえた！`);
+      if(sash){d.revealedItem='sash';emit(`${name(d,1-side)}はきあいのタスキで持ちこたえた！`)}
       berry(d,1-side);
     }
     if(!hits)continue;
@@ -108,6 +108,7 @@ export function resolveSequence(s,action,rng=Math.random){
     faint(d,1-side);
     if(a.item==='orb'){
       a.hp=Math.max(0,a.hp-Math.max(1,Math.floor(a.maxHp/10)));
+      a.revealedItem='orb';
       emit(`${name(a,side)}はいのちのたまでHPが減った！`,850);
       faint(a,side);
     }

@@ -30,7 +30,8 @@ export function damageRange(s,a,d,m){
  const hits=hitLimit(s,m);
  if(m.category==='status')return {label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
- if(!e||!hits)return {label,min:0,max:0};
+ if(!hits)return {label:'失敗',min:0,max:0};
+ if(!e)return {label:'無効',min:0,max:0};
  const i=m.category==='physical'?2:4;
  const target=invested=>({...d,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):v+20)});
  const low=target(true),high=target(false);

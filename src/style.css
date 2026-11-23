@@ -142,29 +142,21 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .card-info{min-width:0;gap:4px}
 @media(max-width:680px){.held-item{font-size:12px}}
 
-/* Compact mobile team selection, including the held-item row. */
+/* Moderately compact mobile selection. */
 @media(max-width:680px){
- main:has(.cards){padding:6px 10px 0}
- main:has(.cards) header{padding-bottom:6px;gap:8px}
- main:has(.cards) header h1{line-height:1.18}
- main:has(.cards) .eyebrow{margin-bottom:2px;line-height:1.2}
- main:has(.cards) .help-button{padding:6px 9px}
- .selection-heading{margin:4px 0;line-height:1.3}
- .preview-top{margin-bottom:6px}
- .preview-top .enemy{padding:5px 8px;gap:3px}
- .preview-top .enemy h3{font-size:14px;line-height:1.2}
- .preview-top .mini{line-height:1.2}
- .preview-top .mini .portrait{width:min(100%,30px);height:30px;margin-bottom:1px}
- .cards{gap:5px}
- .card{padding:6px 8px;gap:3px}
- .card.selected{padding:5px 7px}
- .card .portrait{width:38px;height:38px}
- .card-info{gap:2px}
- .card strong{line-height:1.2}
- .card .type-list{gap:3px}
- .card .type{padding:2px 5px;line-height:1.2}
- .held-item{line-height:1.15}
- .card .num{top:5px;right:6px}
- .selection-bar{padding-top:6px}
- .selection-bar .primary{padding:9px 16px;line-height:1.3}
+ main:has(.cards){padding:10px 12px 0}
+ main:has(.cards) header{padding-bottom:8px}
+ main:has(.cards) .eyebrow{margin-bottom:4px}
+ .selection-heading{margin:4px 0 5px}
+ .preview-top{margin-bottom:8px}
+ .preview-top .enemy{padding:7px 10px;gap:4px}
+ .preview-top .mini .portrait{width:min(100%,34px);height:34px}
+ .cards{gap:6px}
+ .card{padding:7px 9px;gap:5px}
+ .card.selected{padding:6px 8px}
+ .card .portrait{width:44px;height:44px}
+ .card-info{gap:3px}
+ .card .type{padding:2px 7px}
+ .selection-bar{padding-top:8px}
+ .selection-bar .primary{padding:12px 16px}
 }

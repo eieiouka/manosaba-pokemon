@@ -1,6 +1,6 @@
 const attacks=['hit','explosion','cut','gun_shot','electrical_shot'];
 const status=['up','down','heal','poison','paralysis','sleep','burn','freeze','protect'];
-const battle=['switch','faint','victory','defeat'];
+const battle=['switch','faint','victory','defeat','activate'];
 const names=[...attacks,...status,...battle];
 let context=null;
 const buffers=new Map(),pending=new Map();
@@ -22,18 +22,7 @@ export function unlockAttackAudio(){
   for(const name of names)load(name);
  }catch{}
 }
-function playActivation(){
- if(!context||context.state!=='running')return;
- const t=context.currentTime;
- [660,880,1100].forEach((frequency,i)=>{
-  const oscillator=context.createOscillator(),gain=context.createGain(),start=t+i*.075;
-  oscillator.type='sine';oscillator.frequency.value=frequency;
-  gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(.12,start+.012);gain.gain.exponentialRampToValueAtTime(.0001,start+.16);
-  oscillator.connect(gain);gain.connect(context.destination);oscillator.start(start);oscillator.stop(start+.17);
- });
-}
 export function playAttackSound(name){
- if(name==='activate'){try{playActivation()}catch{}return}
  if(!names.includes(name))return;
  try{
   if(!context){const audio=new Audio(url(name));audio.volume=.6;audio.play().catch(()=>{});return}

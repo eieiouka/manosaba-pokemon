@@ -94,6 +94,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const priority=side=>actions[side].kind==='switch'?6:current(side).moves[actions[side].index]?.name==='かげうち'?1:0;
   const difference=priority(0)-priority(1)||rankedStat(current(0),5)-rankedStat(current(1),5);
   const order=difference>0?[0,1]:difference<0?[1,0]:rng()<.5?[0,1]:[1,0];
+  const flinched=new Set();
   for(const side of order){
     const a=current(side),d=current(1-side),act=actions[side];
     if(a.hp<=0||d.hp<=0)continue;
@@ -104,6 +105,7 @@ export function resolveSequence(s,action,rng=Math.random){
       onEntry(side);
       continue;
     }
+    if(flinched.has(side)){emit(`${name(a,side)}はひるんで動けなかった！`);continue}
     const m=a.moves[act.index];if(!m||!canUseMove(a,act.index))continue;
     if(items[a.item]?.choice)a.lockedMove=act.index;
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
@@ -139,6 +141,8 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
+    if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down')}
+    if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance)flinched.add(1-side);
     faint(d,1-side);
     if(a.item==='orb'){
       const notice=activateItem(a,side,'orb');

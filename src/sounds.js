@@ -4,7 +4,7 @@ const battle=['switch','faint','victory','defeat','activate'];
 const names=[...attacks,...status,...battle];
 let context=null;
 const buffers=new Map(),pending=new Map();
-const url=name=>'/sounds/'+(battle.includes(name)?'battle':status.includes(name)?'status':'attacks')+'/'+name+'.mp3';
+const url=name=>'/sounds/'+(battle.includes(name)?'battle':status.includes(name)?'status':'attacks')+'/'+(name==='freeze'?'frieze':name)+'.mp3';
 function load(name){
  if(!context)return Promise.resolve(null);
  if(buffers.has(name))return Promise.resolve(buffers.get(name));

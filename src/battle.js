@@ -64,7 +64,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const n=structuredClone(s),steps=[];
   const alive=side=>n.teams[side].some(c=>c.hp>0);
   const current=side=>n.teams[side][n.active[side]];
-  const emit=(message,delay=850,sound=null,ability=null,itemNotice=null)=>{if(message)n.logs.push(message);steps.push({state:structuredClone(n),delay,sound,ability,itemNotice})};
+  const emit=(message,delay=850,sound=null,ability=null,itemNotice=null,statNotice=null)=>{if(message)n.logs.push(message);steps.push({state:structuredClone(n),delay,sound,ability,itemNotice,statNotice})};
   const itemNotice=(c,side,item)=>({side,name:c.name,item:items[item].name});
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
@@ -74,7 +74,7 @@ export function resolveSequence(s,action,rng=Math.random){
     const ability={side,name:c.name,ability:c.ability};
     emit(`${name(c,side)}の魔女の証！`,950,'activate',ability);
     const old=c.stages[3];c.stages[3]=Math.min(6,old+1);
-    if(c.stages[3]>old)emit(`${name(c,side)}の特攻が上がった！`,850,'up',ability);
+    if(c.stages[3]>old)emit(`${name(c,side)}の特攻が上がった！`,850,'up',ability,null,{side,stat:'特攻',delta:1});
     else emit(`${name(c,side)}の特攻はこれ以上上がらない！`,850,null,ability);
   };
   const faint=(c,side)=>{if(!c.hp&&!c.fainted){c.fainted=true;emit(`${name(c,side)}は倒れた！`,side===1?2300:1100,'faint')}};
@@ -141,7 +141,7 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
-    if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){emit(null,650);d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down')}
+    if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){emit(null,650);d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down',null,null,{side:1-side,stat:'特攻',delta:-1})}
     if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance){emit(null,650);flinched.add(1-side);}
     faint(d,1-side);
     if(a.item==='orb'){

@@ -72,7 +72,7 @@ function SelectionTimer({onExpire}){
  return <div className="selection-heading"><span>3体選んでください</span><span className="selection-timer">{Math.floor(seconds/60)}:{String(seconds%60).padStart(2,'0')}</span></div>
 }
 function BattleTimer({busy,turn}){
- const limit=turn===1?60:30;
+ const limit=60;
  const [seconds,setSeconds]=useState(limit);
  useEffect(()=>{
   if(busy)return;

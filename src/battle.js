@@ -34,7 +34,7 @@ export function startSequence(ids){
  const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};
  const steps=[{state:structuredClone(s),delay:950}];
  for(const side of [0,1]){
-  const c=s.teams[side][0];if(c.ability!=='サイコメイカー'||s.psychicTerrain)continue;
+  const c=s.teams[side][0];if(c.ability==='ふゆう'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}は宙に浮いている！`);steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});continue}if(c.ability!=='サイコメイカー'||s.psychicTerrain)continue;
   c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}のサイコメイカー！`);
   steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
   s.psychicTerrain=c.item==='terrain'?8:5;s.logs.push('サイコフィールドが広がった！');
@@ -110,6 +110,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
     const c=current(side);
+    if(c.ability==='ふゆう'&&!n.gravity){emit(null,650);c.revealedAbility=true;emit(`${name(c,side)}は宙に浮いている！`,950,'activate',{side,name:c.name,ability:c.ability});return}
     if(c.ability==='サイコメイカー'){if(n.psychicTerrain>0)return;emit(null,650);c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
     if(c.ability!=='まじょのあかし'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
     c.revealedAbility=true;

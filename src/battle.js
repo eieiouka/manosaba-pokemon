@@ -113,13 +113,14 @@ export function resolveSequence(s,action,rng=Math.random){
     if(!limit){emit('しかし上手く決まらなかった！');continue}
     const e=effectiveness(m.type,d.types);
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
-    let hits=0;
+    let hits=0,totalDamage=0;
     for(let i=0;i<limit&&d.hp>0;i++){
       if(rng()*100>=m.accuracy){if(!hits)emit('しかし外れてしまった！');break}
       const critical=rng()<criticalChance(m);
       const roll=85+Math.min(15,Math.floor(rng()*16));
       const dealt=damage(a,d,m,roll,critical,side===order[1]);
       const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
+      totalDamage+=sash?d.hp-1:Math.min(d.hp,dealt);
       hits++;
       if(sash){
         d.hp=1;
@@ -144,6 +145,7 @@ export function resolveSequence(s,action,rng=Math.random){
     if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){emit(null,650);d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down',null,null,{side:1-side,stat:'特攻',delta:-1})}
     if(d.hp>0&&m.lowerAtkChance&&d.stages[1]>-6&&rng()*100<m.lowerAtkChance){emit(null,650);d.stages[1]--;emit(`${name(d,1-side)}の攻撃が下がった！`,850,'down',null,null,{side:1-side,stat:'攻撃',delta:-1})}
     if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance){emit(null,650);flinched.add(1-side);}
+    if(m.drain&&totalDamage>0&&a.hp<a.maxHp){emit(null,650);a.hp=Math.min(a.maxHp,a.hp+Math.max(1,Math.floor(totalDamage*m.drain)));emit(`${name(a,side)}はHPを回復した！`,850,'heal')}
     faint(d,1-side);
     if(a.item==='orb'){
       const notice=activateItem(a,side,'orb');

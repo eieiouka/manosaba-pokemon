@@ -254,3 +254,7 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 
 .moves .damage-value{font-size:18px}
 @media(max-width:680px){.moves .damage-value{font-size:15px}}
+
+/* Slightly loosen the three move rows. */
+main:has(.arena) .moves .move-button{row-gap:4px}
+@media(max-width:680px){main:has(.arena) .moves .move-button{row-gap:7px}}

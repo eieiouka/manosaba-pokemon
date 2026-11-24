@@ -1,6 +1,6 @@
 // Simultaneous-action search for offline analysis and live CPU battles.
 import {roster,struggle} from './data.js';
-import {makeTeam,resolveSequence,canUseMove,isTrapped,damage,hitLimit,rankedStat} from './battle.js';
+import {makeTeam,resolveSequence,canUseMove,isTrapped,damage,hitLimit,rankedStat,chooseCpu} from './battle.js';
 export function seededRandom(seed=1){let x=seed>>>0;return ()=>{x=(Math.imul(x,1664525)+1013904223)>>>0;return x/4294967296}}
 const active=(s,i)=>s.teams[i][s.active[i]];
 const priority=m=>m?.priority??(m?.name==='かげうち'?1:0);
@@ -159,25 +159,40 @@ export function cpuView(s){
  }for(let i=start;i<pool.length;i++)add([...ids,pool[i]],i+1)}
  add([],0);return hypotheses;
 }
-export function liveCpuAction(s,{budget=850,rng=Math.random}={}){
- const states=cpuView(s),deadline=Date.now()+budget;
- const actions=legalActions(s,1);
+
+// Forecast likely opposing attacks, while retaining a chance of every legal
+// switch, setup move and counter-read. The old damage policy is a useful prior.
+function opposingDamageAction(s){
+ return chooseCpu({...s,teams:[s.teams[1],s.teams[0]],active:[s.active[1],s.active[0]]});
+}
+export function liveCpuAction(s,{budget=850,rng=Math.random,maxRounds=60}={}){
+ const states=cpuView(s),deadline=Date.now()+budget,actions=legalActions(s,1);
  if(!actions.length)return null;
- let probs=actions.map(()=>0),count=0;
- // Start with a complete sweep of possible lineups; then extend the lookahead.
+ if(actions.length===1)return actions[0];
+ let scores=actions.map(()=>0),rounds=0;
  const shuffled=states.map(state=>({state,key:rng()})).sort((a,b)=>a.key-b.key).map(x=>x.state);
- for(const depth of [1,2,3]){
-  const next=actions.map(()=>0);let n=0;
-  for(const state of shuffled){
-   try{
-    const result=search(state,{depth,samples:depth===1?4:2,rolloutTurns:1,iterations:64,rng,deadline});
-    if(!result.col.length)continue;
-    result.col.forEach((p,i)=>next[i]+=p);n++;
-   }catch(e){if(e.message!=='search deadline')throw e;break;}
+ for(let j=0;j<maxRounds;j++){
+  const h=shuffled[j%shuffled.length],opponents=legalActions(h,0),likely=opposingDamageAction(h);
+  if(!opponents.length)break;
+  const weights=opponents.map(a=>a.kind===likely.kind&&a.index===likely.index?.70:.30/opponents.length);
+  const sum=weights.reduce((a,b)=>a+b,0),seed=Math.floor(rng()*4294967296);
+  const batch=actions.map(()=>0);let complete=true;
+  for(let i=0;i<actions.length;i++){
+   for(let z=0;z<opponents.length;z++){
+    if(Date.now()>deadline){complete=false;break}
+    const r=seededRandom(seed);
+    let n=transition(h,opponents[z],actions[i],r);
+    const immediate=-evaluate(n);
+    for(let t=0;t<2&&n.winner===null;t++){
+     n=transition(n,opposingDamageAction(n),chooseCpu(n),r);
+    }
+    batch[i]+=(.60*immediate-.40*evaluate(n))*weights[z]/sum;
+   }
+   if(!complete)break;
   }
-  if(n===shuffled.length||!count&&n){probs=next;count=n}
-  if(n<shuffled.length||Date.now()>deadline)break;
+  if(!complete)break;
+  batch.forEach((v,i)=>scores[i]+=v);rounds++;
  }
- if(!count)return quickAction(states[0]??s,1);
- return actions[draw(probs.map(x=>x/count),rng)];
+ if(!rounds)return chooseCpu(states[0]??s);
+ return actions[scores.indexOf(Math.max(...scores))];
 }

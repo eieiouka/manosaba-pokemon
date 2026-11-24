@@ -100,12 +100,12 @@ const attackSounds={
 };
 const attackSound=m=>m.sound??attackSounds[m.name]??(m.type==='electric'?'electrical_shot':m.category==='physical'?'hit':'explosion');
 // Each step contains a complete battle snapshot and a display duration.
-export function resolveSequence(s,action,rng=Math.random){
+export function resolveSequence(s,action,rng=Math.random,options={}){
   if(s.winner!==null)return [];
   const n=structuredClone(s),steps=[];
   const alive=side=>n.teams[side].some(c=>c.hp>0);
   const current=side=>n.teams[side][n.active[side]];
-  const emit=(message,delay=850,sound=null,ability=null,itemNotice=null,statNotice=null)=>{if(message)n.logs.push(message);steps.push({state:structuredClone(n),delay,sound,ability,itemNotice,statNotice})};
+  const emit=(message,delay=850,sound=null,ability=null,itemNotice=null,statNotice=null)=>{if(message&&!options.fast)n.logs.push(message);if(options.fast)steps[0]={state:n,delay:0};else steps.push({state:structuredClone(n),delay,sound,ability,itemNotice,statNotice})};
   const itemNotice=(c,side,item)=>({side,name:c.name,item:items[item].name});
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
@@ -126,6 +126,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp)heal(c,side,Math.floor(c.maxHp/4),'sitrus')};
   const resetStages=c=>{c.stages=[0,0,0,0,0,0];c.lockedMove=null;c.silenced=0;c.critRank=0;c.accuracyStage=0;c.evasionStage=0;c.confusion=0;c.taunted=0;c.trappedBy=null};
   const reserves=side=>n.teams[side].map((c,i)=>i).filter(i=>i!==n.active[side]&&n.teams[side][i].hp>0);
+  const pickReserve=side=>{const list=reserves(side);const chosen=options.chooseSwitch?.(n,side,list);return list.includes(chosen)?chosen:list[0]};
   const switchTo=(side,index)=>{const old=current(side);if(current(1-side).trappedBy===old.id)current(1-side).trappedBy=null;resetStages(old);n.active[side]=index;emit(`${name(old,side)}を戻した！ ${name(current(side),side)}を繰り出した！`,850,'switch');onEntry(side)};
   const revive=side=>{const c=current(side);if(c.hp!==0||c.ability!=='しにもどり'||c.revivalUsed||!reserves(side).length)return false;c.revivalUsed=true;c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のしにもどり！`,950,'activate',ability);c.hp=1;c.fainted=false;c.status=null;c.sleepTurns=0;resetStages(c);emit(`${name(c,side)}はHP1で復活した！`,850,'heal',ability);return true};
   const pending=n.pendingSwitch;
@@ -143,7 +144,8 @@ export function resolveSequence(s,action,rng=Math.random){
   }
   if(!pending&&action.kind==='switch'&&(isTrapped(n,0)||!n.teams[0][action.index]?.hp||action.index===n.active[0]))return [];
   if(!pending&&action.kind==='move'&&(!canUseMove(current(0),action.index)))return [];
-  const actions=pending?.actions??[action,chooseCpu(n)];
+  const actions=pending?.actions??[action,options.opponentAction??chooseCpu(n)];
+  if(!pending&&options.opponentAction){const x=actions[1];if(x.kind==='switch'&&(isTrapped(n,1)||!reserves(1).includes(x.index))||x.kind==='move'&&!canUseMove(current(1),x.index))return []}
   const priority=side=>actions[side].kind==='switch'?6:movePriority(current(side).moves[actions[side].index]);
   const difference=priority(0)-priority(1)||rankedStat(current(0),5)-rankedStat(current(1),5);
   const order=pending?.order??(difference>0?[0,1]:difference<0?[1,0]:rng()<.5?[0,1]:[1,0]);
@@ -168,7 +170,7 @@ export function resolveSequence(s,action,rng=Math.random){
     if(m.gravity){if(n.gravity>0){emit('しかし上手く決まらなかった！');continue}n.gravity=5;emit('重力が強くなった！');continue}
     if(m.sleep||m.confuse||m.taunt){
       if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
-      if(m.sleep||m.confuse){if(m.sleep?!!d.status:d.confusion>0){emit('しかし上手く決まらなかった！');continue}if(m.sleep){d.status='sleep';d.sleepTurns=1+Math.floor(rng()*3);emit(`${name(d,1-side)}は眠ってしまった！`,850,'sleep')}else{d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850)}if(reserves(side).length){if(side===1)switchTo(1,reserves(1)[0]);else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
+      if(m.sleep||m.confuse){if(m.sleep?!!d.status:d.confusion>0){emit('しかし上手く決まらなかった！');continue}if(m.sleep){d.status='sleep';d.sleepTurns=1+Math.floor(rng()*3);emit(`${name(d,1-side)}は眠ってしまった！`,850,'sleep')}else{d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850)}if(reserves(side).length){if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
       else{if(d.taunted>0){emit('しかし上手く決まらなかった！');continue}d.taunted=3;emit(`${name(d,1-side)}はちょうはつに乗った！`)}continue;
     }
     if(m.swordsDance){if(a.stages[1]>=6){emit('しかし上手く決まらなかった！');continue}const delta=Math.min(2,6-a.stages[1]);a.stages[1]+=delta;emit(`${name(a,side)}の攻撃が${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'攻撃',delta});continue}
@@ -232,7 +234,7 @@ export function resolveSequence(s,action,rng=Math.random){
       faint(a,side);
     }
     if(m.pivot&&a.hp>0&&reserves(side).length&&alive(1-side)){
-      if(side===1)switchTo(1,reserves(1)[0]);
+      if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));
       else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
     }
   }
@@ -247,9 +249,9 @@ export function resolveSequence(s,action,rng=Math.random){
   n.turn++;
   if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0,n.winner===0?'victory':'defeat')}
   else{
-    if(cpuRevived)switchTo(1,reserves(1)[0]);
-    else if(!current(1).hp){n.active[1]=n.teams[1].findIndex(c=>c.hp>0);emit(`CPUは ${current(1).name}を繰り出した！`,850,'switch');onEntry(1)}
-    if(playerRevived){n.pendingSwitch={reason:'revive'};emit('交代する魔法少女を選択！',0)}else emit(null,0);
+    if(cpuRevived)switchTo(1,pickReserve(1));
+    else if(!current(1).hp){n.active[1]=pickReserve(1);emit(`CPUは ${current(1).name}を繰り出した！`,850,'switch');onEntry(1)}
+    if(playerRevived){if(options.chooseSwitch)switchTo(0,pickReserve(0));else{n.pendingSwitch={reason:'revive'};emit('交代する魔法少女を選択！',0)}}else if(options.chooseSwitch&&!current(0).hp){n.active[0]=pickReserve(0);emit(`いけ！ ${current(0).name}！`,850,'switch');onEntry(0)}else emit(null,0);
   }
   return steps;
 }

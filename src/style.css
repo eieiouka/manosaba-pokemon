@@ -283,7 +283,7 @@ main:has(.arena) .moves .move-button{row-gap:4px}
 .field-indicators span{background:#3d265cdd;border-radius:5px;padding:2px 5px}
 @media(prefers-reduced-motion:reduce){.arena.psychic-field{animation:none}}
 
-.field-indicators{top:50%;transform:translate(-50%,-50%);gap:6px;font-size:12px;font-weight:700}
+.field-indicators{top:4px;transform:translateX(-50%);gap:6px;font-size:12px;font-weight:700}
 .field-indicators span{padding:3px 7px;line-height:1.2;border:1px solid #e3b5f0;background:#513362f5;box-shadow:0 2px 8px #0005}
 .field-indicators .field-gravity{background:#35354df5;border-color:#a9a4da}
 .field-indicators strong{color:#f9df69;font-size:16px;font-variant-numeric:tabular-nums}

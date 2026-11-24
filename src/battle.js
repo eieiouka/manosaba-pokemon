@@ -119,7 +119,7 @@ export function resolveSequence(s,action,rng=Math.random){
       if(rng()*100>=m.accuracy){if(!hits)emit('しかし外れてしまった！');break}
       const critical=rng()<criticalChance(m);
       const roll=85+Math.min(15,Math.floor(rng()*16));
-      const dealt=damage(a,d,m,roll,critical,side===order[1]);
+      const dealt=damage(a,d,m,roll,critical,side===order[1]&&actions[1-side].kind==='move');
       const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
       totalDamage+=sash?d.hp-1:Math.min(d.hp,dealt);
       hits++;

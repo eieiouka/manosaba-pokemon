@@ -217,3 +217,25 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .moves .effect-tag.ineffective{background:#555364}
 .moves .move-meta{gap:4px}
 @media(max-width:680px){.moves .effect-tag{font-size:9px;padding:2px 3px}.moves .move-meta .type{padding:2px 4px;font-size:11px}}
+
+/* Three-line move card: type/effectiveness, name/PP, damage. */
+.moves .move-button{grid-template-rows:auto auto auto;align-content:start;min-width:0}
+.moves .move-meta{min-height:20px;flex-wrap:nowrap}
+.moves .move-name-row{flex-wrap:nowrap;gap:4px}
+.moves .move-name-row strong{min-width:0;overflow-wrap:anywhere}
+.moves .damage-range{display:block;min-width:0;line-height:1.2}
+.moves .damage-value{font-size:17px}
+@media(max-width:680px){
+ main:has(.arena){padding:8px 10px 0}
+ main:has(.arena) header{padding-bottom:6px}
+ main:has(.arena) .eyebrow{margin-bottom:3px}
+ main:has(.arena) .arena{margin-top:6px!important;padding:8px 10px;gap:8px}
+ main:has(.arena) .fighter{min-height:96px}
+ main:has(.arena) .fighter .portrait{width:84px;height:84px}
+ main:has(.arena) .log{min-height:48px;margin:6px 0;padding:5px 9px}
+ main:has(.arena) .tabs{gap:6px;margin-bottom:5px}
+ main:has(.arena) .moves button{padding:6px 8px;gap:3px}
+ .moves .move-name-row strong{font-size:14px}
+ .moves .move-pp{font-size:11px}
+ .moves .damage-value{font-size:16px}
+}

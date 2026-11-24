@@ -40,7 +40,11 @@ export function damageRange(s,a,d,m){
  return {label,min:Math.floor(damage(a,low,m,85,criticalChance(m,a)===1)*100/low.stats[0]),max:Math.floor(damage(a,high,m,100,criticalChance(m,a)===1)*100/high.stats[0])};
 }
 export const canUseMove=(c,i)=>i===-1?!c.moves.some((m,k)=>canUseMove(c,k)):!!c.moves[i]&&(c.pp?.[i]??c.moves[i].pp)>0&&!(c.item==='vest'&&c.moves[i].category==='status')&&(!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i);
-const moveScore=(s,a,d,m)=>m.category==='status'?(m.dance&&a.critRank<2&&a.hp===a.maxHp&&a.item==='sash'?35:0):m.soundMove&&a.silenced>0?0:Array.from({length:16},(_,i)=>damage(a,d,m,85+i,false,rankedStat(a,5)<rankedStat(d,5))).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
+const moveScore=(s,a,d,m)=>{
+ if(m.category==='status'||m.soundMove&&a.silenced>0||!accuracyChance(m,a,d))return 0;
+ if(m.sucker&&!d.moves.some((other,i)=>other.category!=='status'&&canUseMove(d,i))&&!canUseMove(d,-1))return 0;
+ return damage(a,d,m,100,criticalChance(m,a)===1,rankedStat(a,5)<rankedStat(d,5))*hitLimit(s,m);
+};
 const movePriority=m=>m?.priority??(m?.name==='かげうち'?1:0);
 // Prefer a priority move when both attacks can finish the current opponent reliably.
 function guaranteedKO(s,a,d,m){
@@ -58,7 +62,7 @@ function guaranteedKO(s,a,d,m){
 }
 export function chooseCpu(s){
  const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];
- const best=a.moves.map((m,i)=>({i,score:moveScore(s,a,d,m),ko:guaranteedKO(s,a,d,m),priority:movePriority(m)})).filter(({i})=>canUseMove(a,i)).sort((x,y)=>Number(y.ko)-Number(x.ko)||(x.ko&&y.ko?y.priority-x.priority:0)||y.score-x.score)[0];
+ const best=a.moves.map((m,i)=>({i,score:moveScore(s,a,d,m),ko:guaranteedKO(s,a,d,m),priority:movePriority(m)})).filter(({i})=>canUseMove(a,i)).sort((x,y)=>(y.ko?y.priority:0)-(x.ko?x.priority:0)||y.score-x.score||y.priority-x.priority)[0];
  if(!best||(best.score===0&&a.lockedMove!=null)){
   const next=s.teams[1].map((c,i)=>({i,score:Math.max(...c.moves.map(m=>moveScore(s,c,d,m)))})).filter(({i,score})=>i!==s.active[1]&&s.teams[1][i].hp>0&&score>0).sort((a,b)=>b.score-a.score)[0];
   if(next)return {kind:'switch',index:next.i};

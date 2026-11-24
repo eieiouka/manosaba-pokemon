@@ -262,3 +262,6 @@ main:has(.arena) .moves .move-button{row-gap:4px}
 .moves .move-meta .move-pp{margin-left:auto;flex-shrink:0}
 .moves .move-meta{gap:4px}
 @media(max-width:680px){.moves .move-meta{gap:3px}.moves .move-meta .move-pp{font-size:11px}.moves .move-meta .effect-tag{font-size:10px}}
+
+.moves .move-meta .move-pp{font-size:15px}
+@media(max-width:680px){.moves .move-meta .move-pp{font-size:13px}}

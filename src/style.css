@@ -265,3 +265,6 @@ main:has(.arena) .moves .move-button{row-gap:4px}
 
 .moves .move-meta .move-pp{font-size:15px}
 @media(max-width:680px){.moves .move-meta .move-pp{font-size:13px}}
+
+/* Clearer PP readout: upright, bold numerals with high contrast. */
+.moves .move-meta .move-pp{font-family:system-ui,sans-serif;font-weight:800;color:#f3f0fa;letter-spacing:0;font-style:normal;font-variant-numeric:tabular-nums;line-height:1.2}

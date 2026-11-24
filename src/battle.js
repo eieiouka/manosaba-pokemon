@@ -171,8 +171,8 @@ export function resolveSequence(s,action,rng=Math.random){
     }
     if(m.dance){
       if(a.stages[1]>=6&&a.critRank>=3){emit('しかし上手く決まらなかった！');continue}
-      if(a.stages[1]<6){a.stages[1]++;emit(`${name(a,side)}の攻撃が上がった！`,850,'up',null,null,{side,stat:'攻撃',delta:1})}
-      const delta=Math.min(2,3-a.critRank);if(delta>0){a.critRank+=delta;emit(`${name(a,side)}の急所ランクが上がった！`,850,'up',null,null,{side,stat:'急所',delta})}continue;
+      if(a.stages[1]<6){const boost=Math.min(2,6-a.stages[1]);a.stages[1]+=boost;emit(`${name(a,side)}の攻撃が${boost===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'攻撃',delta:boost})}
+      const delta=Math.min(1,3-a.critRank);if(delta>0){a.critRank+=delta;emit(`${name(a,side)}の急所ランクが上がった！`,850,'up',null,null,{side,stat:'急所',delta})}continue;
     }
     if(m.sucker&&(side!==order[0]||actions[1-side].kind!=='move'||current(1-side).moves[actions[1-side].index]?.category==='status')){emit('しかし上手く決まらなかった！');continue}
     const limit=hitLimit(n,m);

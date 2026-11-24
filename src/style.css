@@ -268,3 +268,9 @@ main:has(.arena) .moves .move-button{row-gap:4px}
 
 /* Clearer PP readout: upright, bold numerals with high contrast. */
 .moves .move-meta .move-pp{font-family:system-ui,sans-serif;font-weight:800;color:#f3f0fa;letter-spacing:0;font-style:normal;font-variant-numeric:tabular-nums;line-height:1.2}
+
+.switches button{min-width:0;align-content:start}
+.switches .switch-hp{width:100%;height:7px;margin:0}
+.switches .switch-hp-number{font-variant-numeric:tabular-nums;white-space:nowrap}
+.switches .held-item{font-size:13px;line-height:1.3}
+@media(max-width:680px){.switches button{padding:7px 6px;gap:4px}.switches .held-item{font-size:11px}.switches .switch-hp-number{font-size:12px}}

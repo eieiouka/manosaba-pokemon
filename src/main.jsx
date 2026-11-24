@@ -4,6 +4,7 @@ import {createPortal} from 'react-dom';
 import {roster,types,colors,items,struggle} from './data.js';
 import {start,startSequence,resolveSequence,makeTeam,canUseMove,damageRange,isTrapped} from './battle.js';
 import './style.css';
+import {chooseCpuTeam,chooseReserve} from './ai.js';
 import {unlockAttackAudio,playAttackSound} from './sounds.js';
 function Type({type}){return <span className="type" style={{background:colors[type]}}>{types[type]}</span>}
 function Portrait({c,fainted=false,onInspect}){
@@ -65,6 +66,20 @@ function InfoModal({character,move:initialMove,item,onClose,inBattle,opponent=fa
  </>}
  </section></div>,document.body)
 }
+// Run search off the UI thread, with a hard timeout for slow devices.
+function thinkCpu(state){
+ return new Promise(resolve=>{
+  let worker,timer;
+  const finish=action=>{clearTimeout(timer);worker?.terminate();resolve(action)};
+  try{
+   worker=new Worker(new URL('./cpu.worker.js',import.meta.url),{type:'module'});
+   worker.onmessage=e=>finish(e.data);
+   worker.onerror=()=>finish(undefined);
+   timer=setTimeout(()=>finish(undefined),3800);
+   worker.postMessage(state);
+  }catch{finish(undefined)}
+ });
+}
 function SelectionTimer({onExpire}){
  const [seconds,setSeconds]=useState(60);
  useEffect(()=>{
@@ -100,13 +115,19 @@ function App(){
  const [abilityNotice,setAbilityNotice]=useState(null);
  const [itemNotice,setItemNotice]=useState(null);
  const [statNotice,setStatNotice]=useState(null);
- const busyRef=useRef(false),playbackTimer=useRef(null);
+ const busyRef=useRef(false),playbackTimer=useRef(null),cpuThinkRef=useRef(null);
  useEffect(()=>()=>clearTimeout(playbackTimer.current),[]);
- const act=(action)=>{
+ useEffect(()=>{
+  if(!battle||busy||battle.winner!==null||battle.pendingSwitch||!battle.teams[0][battle.active[0]].hp){cpuThinkRef.current=null;return}
+  cpuThinkRef.current={state:battle,promise:thinkCpu(battle)};
+ },[battle,busy]);
+ const act=async(action)=>{
   if(busyRef.current||!battle)return;
   unlockAttackAudio();
-  const steps=resolveSequence(battle,action);
-  if(!steps.length)return;
+  busyRef.current=true;setBusy(true);
+  const cpuAction=battle.pendingSwitch||!battle.teams[0][battle.active[0]].hp?undefined:await (cpuThinkRef.current?.state===battle?cpuThinkRef.current.promise:thinkCpu(battle));
+  const steps=resolveSequence(battle,action,Math.random,{opponentAction:cpuAction,cpuChooseSwitch:chooseReserve});
+  if(!steps.length){busyRef.current=false;setBusy(false);return;}
   busyRef.current=true;setBusy(true);setTab('move');
   const play=i=>{
    if(i>=steps.length){busyRef.current=false;setBusy(false);setAbilityNotice(null);setItemNotice(null);setStatNotice(null);return}
@@ -116,7 +137,7 @@ function App(){
   };
   play(0);
  };
- const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const steps=startSequence(selected);busyRef.current=true;setBusy(true);const play=i=>{if(i>=steps.length){setAbilityNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
+ const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const steps=startSequence(selected,chooseCpuTeam());busyRef.current=true;setBusy(true);const play=i=>{if(i>=steps.length){setAbilityNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
  const reset=()=>{setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  const trapped=!!battle&&!battle.pendingSwitch&&isTrapped(battle,0);

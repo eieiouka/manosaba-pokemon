@@ -1,5 +1,5 @@
 import {roster,effectiveness,items,struggle} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[]}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -110,6 +110,7 @@ export function resolveSequence(s,action,rng=Math.random){
     if(flinched.has(side)){emit(`${name(a,side)}はひるんで動けなかった！`);continue}
     const m=act.index===-1?struggle:a.moves[act.index];if(!m||!canUseMove(a,act.index))continue;
     if(act.index!==-1){a.pp[act.index]--;if(items[a.item]?.choice)a.lockedMove=act.index;}
+    if(act.index!==-1&&!a.revealedMoves.includes(act.index))a.revealedMoves.push(act.index);
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     if(m.dance){
       if(a.stages[1]>=6&&a.critRank>=3){emit('しかし上手く決まらなかった！');continue}

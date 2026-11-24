@@ -110,7 +110,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
     const c=current(side);
-    if(c.ability==='ふゆう'&&!n.gravity){emit(null,650);c.revealedAbility=true;emit(`${name(c,side)}は宙に浮いている！`,950,'activate',{side,name:c.name,ability:c.ability});return}
+    if(c.ability==='ふゆう'){emit(null,650);c.revealedAbility=true;emit(`${name(c,side)}は宙に浮いている！`,950,'activate',{side,name:c.name,ability:c.ability});if(n.gravity>0)emit(`${name(c,side)}は重力の効果で地面に落とされた！`,850);return}
     if(c.ability==='サイコメイカー'){if(n.psychicTerrain>0)return;emit(null,650);c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
     if(c.ability!=='まじょのあかし'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
     c.revealedAbility=true;

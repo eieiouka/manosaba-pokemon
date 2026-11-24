@@ -68,7 +68,7 @@ const moveScore=(s,a,d,m)=>{
 const movePriority=m=>m?.priority??(m?.name==='かげうち'?1:0);
 // Prefer a priority move when both attacks can finish the current opponent reliably.
 function guaranteedKO(s,a,d,m){
- if(m.category==='status'||m.category==='physical'&&d.ability==='げんし'||!hitLimit(s,m)||terrainBlocked(s,m,d)||!matchup(m,d,s)||m.soundMove&&a.silenced>0||accuracyChance(m,a,d,s)<100)return false;
+ if(m.category==='status'||m.contact&&d.ability==='げんし'||!hitLimit(s,m)||terrainBlocked(s,m,d)||!matchup(m,d,s)||m.soundMove&&a.silenced>0||accuracyChance(m,a,d,s)<100)return false;
  if(m.sucker&&!d.moves.some((other,i)=>other.category!=='status'&&canUseMove(d,i))&&!canUseMove(d,-1))return false;
  const dealt=damage(a,d,m,85,criticalChance(m,a)===1,false,s);
  let hp=d.hp,item=d.item;
@@ -186,7 +186,7 @@ export function resolveSequence(s,action,rng=Math.random){
     let hits=0,totalDamage=0;
     for(let i=0;i<limit&&d.hp>0;i++){
       if((m.multiHit!=='silver'||i===0)&&rng()*100>=accuracyChance(m,a,d,n)){if(!hits)emit('しかし外れてしまった！');break}
-      if(i===0&&m.category==='physical'&&d.ability==='げんし'&&rng()<.3){d.revealedAbility=true;emit(`${name(d,1-side)}のげんし！`,950,'activate',{side:1-side,name:d.name,ability:d.ability});emit(`${name(d,1-side)}は攻撃をかわした！`);break}
+      if(i===0&&m.contact&&d.ability==='げんし'&&rng()<.3){d.revealedAbility=true;emit(`${name(d,1-side)}のげんし！`,950,'activate',{side:1-side,name:d.name,ability:d.ability});emit(`${name(d,1-side)}は攻撃をかわした！`);break}
       const critical=rng()<criticalChance(m,a);
       const roll=85+Math.min(15,Math.floor(rng()*16));
       const dealt=damage(a,d,m,roll,critical,side===order[1]&&actions[1-side].kind==='move',n);

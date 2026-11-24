@@ -274,3 +274,11 @@ main:has(.arena) .moves .move-button{row-gap:4px}
 .switches .switch-hp-number{font-variant-numeric:tabular-nums;white-space:nowrap}
 .switches .held-item{font-size:13px;line-height:1.3}
 @media(max-width:680px){.switches button{padding:7px 6px;gap:4px}.switches .held-item{font-size:11px}.switches .switch-hp-number{font-size:12px}}
+
+/* Psychic Terrain: subtly shifting pink and violet field. */
+.arena{position:relative}
+.arena.psychic-field{background:radial-gradient(ellipse at 30% 45%,#a24382aa,#563a8ed9 65%,#281d45),linear-gradient(120deg,#914675,#513b92,#b65e9a);background-size:160% 160%;animation:psychic-field-flow 7s ease-in-out infinite alternate;border-color:#ae76bb}
+@keyframes psychic-field-flow{from{background-position:0% 25%}to{background-position:100% 75%}}
+.field-indicators{position:absolute;top:3px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:2;pointer-events:none;white-space:nowrap;font-size:10px;color:#fff}
+.field-indicators span{background:#3d265cdd;border-radius:5px;padding:2px 5px}
+@media(prefers-reduced-motion:reduce){.arena.psychic-field{animation:none}}

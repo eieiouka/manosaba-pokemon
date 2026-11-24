@@ -42,7 +42,7 @@ function material(s,side){
  return s.teams[side].reduce((v,c,i)=>{
  if(c.hp<=0)return v;
  const on=i===s.active[side],fraction=c.hp/c.maxHp;
- return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(on&&c.confusion>0?.07:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
+ return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
  },0);
 }
 export function evaluate(s){
@@ -51,9 +51,26 @@ export function evaluate(s){
  let v=material(s,0)-material(s,1);
  if(a.hp>0&&b.hp>0){
   v+=.17*(Math.min(1,bestHit(s,a,b)/b.hp)-Math.min(1,bestHit(s,b,a)/a.hp));
-  if(s.gravity&&s.psychicTerrain){v+=.035*(s.teams[0].some(c=>c.hp>0&&c.id==='hanna')-s.teams[1].some(c=>c.hp>0&&c.id==='hanna'))}
+  v+=.18*initiative(s,0);
+  if(s.psychicTerrain)v+=terrainValue(s,0)-terrainValue(s,1);
  }
  return Math.tanh(v/2.5);
+}
+// Value the actual protection afforded by terrain against surviving priority users.
+function terrainValue(s,side){
+ const duration=Math.min(1,s.psychicTerrain/4),friends=s.teams[side].filter(c=>c.hp>0),foes=s.teams[1-side].filter(c=>c.hp>0);
+ let benefit=0;
+ for(const c of friends){
+  if(!ground(c,s))continue;
+  let threat=0;
+  for(const d of foes)for(const m of d.moves){
+   if(priority(m)<=0||m.category==='status')continue;
+   const hit=attackValue({...s,psychicTerrain:0},d,c,m);
+   threat=Math.max(threat,Math.min(1,hit/c.hp));
+  }
+  benefit+=threat*(c.moves.some(m=>m.dance||m.swordsDance)?.10:.055);
+ }
+ return duration*benefit;
 }
 function quickAction(s,side){
  const a=active(s,side),d=active(s,1-side),actions=legalActions(s,side);
@@ -68,7 +85,7 @@ function quickAction(s,side){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
     if(m.gravity&&!s.gravity&&s.psychicTerrain>2&&s.teams[side].some(c=>c.id==='hanna'&&c.hp>0))v=.55;
-    if(m.confuse&&!d.confusion&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.45;
+    if(m.confuse&&!d.confusion&&!(m.soundMove&&a.silenced>0)&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.55*Math.min(1,m.accuracy/100*(s.gravity?5/3:1));
     if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.gravity))v=.35;
    }else{const dmg=attackValue(s,a,d,m);v=dmg/Math.max(1,d.hp);if(dmg>=d.hp&&priority(m)>0)v+=.7}
   }
@@ -205,9 +222,10 @@ export function liveCpuAction(s,{budget=850,rng=Math.random,maxRounds=60}={}){
  let scores=actions.map(()=>0),rounds=0;
  const shuffled=states.map(state=>({state,key:rng()})).sort((a,b)=>a.key-b.key).map(x=>x.state);
  for(let j=0;j<maxRounds;j++){
-  const h=shuffled[j%shuffled.length],opponents=legalActions(h,0),likely=opposingDamageAction(h);
+  const h=shuffled[j%shuffled.length],opponents=legalActions(h,0),likely=opposingDamageAction(h),tactical=quickAction(h,0);
   if(!opponents.length)break;
-  const weights=opponents.map(a=>a.kind===likely.kind&&a.index===likely.index?.70:.30/opponents.length);
+  const same=(a,b)=>a.kind===b?.kind&&a.index===b?.index;
+  const weights=opponents.map(a=>.20/opponents.length+(same(a,likely)?.55:0)+(same(a,tactical)?.25:0));
   const sum=weights.reduce((a,b)=>a+b,0),seed=Math.floor(rng()*4294967296);
   const batch=actions.map(()=>0);let complete=true;
   for(let i=0;i<actions.length;i++){
@@ -217,8 +235,8 @@ export function liveCpuAction(s,{budget=850,rng=Math.random,maxRounds=60}={}){
     let n=transition(h,opponents[z],actions[i],r);
     const immediate=-evaluate(n),cost=switchCost(h,n,actions[i]);let futureCost=0;
     for(let t=0;t<2&&n.winner===null;t++){
-     const prior=n,reply=chooseCpu(n);
-     n=transition(n,opposingDamageAction(n),reply,r);
+     const prior=n,reply=t===0?quickAction(n,1):chooseCpu(n);
+     n=transition(n,t===0?quickAction(n,0):opposingDamageAction(n),reply,r);
      if(reply.kind==='switch'&&n.winner===null)futureCost+=.5*switchCost(prior,n,reply);
     }
     batch[i]+=(.40*immediate-.60*evaluate(n)-cost-futureCost)*weights[z]/sum;

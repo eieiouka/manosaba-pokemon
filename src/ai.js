@@ -165,6 +165,39 @@ export function cpuView(s){
 function opposingDamageAction(s){
  return chooseCpu({...s,teams:[s.teams[1],s.teams[0]],active:[s.active[1],s.active[0]]});
 }
+
+// Estimate the next-turn initiative, including the chance of acting before a KO.
+// A switch that merely immunizes one hit but leaves a losing matchup has little value.
+function initiative(s,side){
+ const a=active(s,side),d=active(s,1-side);
+ if(!a.hp||!d.hp)return 0;
+ function options(att,def){
+  return att.moves.map((m,i)=>({m,value:canUseMove(att,i)?attackValue(s,att,def,m):0})).filter(x=>x.value>0);
+ }
+ const ours=options(a,d),theirs=options(d,a);
+ const speed=rankedStat(a,5)-rankedStat(d,5);
+ const before=(m,n)=>priority(m)>priority(n)||priority(m)===priority(n)&&speed>0;
+ const own=Math.max(0,...ours.map(({m,value})=>{
+  const danger=Math.max(0,...theirs.filter(x=>!before(m,x.m)).map(x=>x.value))/a.hp;
+  return Math.min(1,value/d.hp)*(danger>=1?.15:1-.35*danger);
+ }));
+ const enemy=Math.max(0,...theirs.map(({m,value})=>{
+  const danger=Math.max(0,...ours.filter(x=>before(x.m,m)).map(x=>x.value))/d.hp;
+  return Math.min(1,value/a.hp)*(danger>=1?.15:1-.35*danger);
+ }));
+ return own-enemy;
+}
+function switchCost(before,after,action){
+ if(action.kind!=='switch'||after.winner!==null)return 0;
+ const outgoing=active(before,1),incoming=active(after,1);
+ if(incoming.id===outgoing.id||incoming.hp<=0)return .055;
+ const old=initiative(before,1),next=initiative(after,1);
+ // A modest tempo cost, larger when the replacement cannot threaten the opponent.
+ // Good defensive pivots and escapes from a losing/locked matchup remain attractive.
+ const improvement=next-old;
+ return .025+.055*Math.max(0,.25-next)+.055*Math.max(0,.15-improvement);
+}
+
 export function liveCpuAction(s,{budget=850,rng=Math.random,maxRounds=60}={}){
  const states=cpuView(s),deadline=Date.now()+budget,actions=legalActions(s,1);
  if(!actions.length)return null;
@@ -182,11 +215,13 @@ export function liveCpuAction(s,{budget=850,rng=Math.random,maxRounds=60}={}){
     if(Date.now()>deadline){complete=false;break}
     const r=seededRandom(seed);
     let n=transition(h,opponents[z],actions[i],r);
-    const immediate=-evaluate(n);
+    const immediate=-evaluate(n),cost=switchCost(h,n,actions[i]);let futureCost=0;
     for(let t=0;t<2&&n.winner===null;t++){
-     n=transition(n,opposingDamageAction(n),chooseCpu(n),r);
+     const prior=n,reply=chooseCpu(n);
+     n=transition(n,opposingDamageAction(n),reply,r);
+     if(reply.kind==='switch'&&n.winner===null)futureCost+=.5*switchCost(prior,n,reply);
     }
-    batch[i]+=(.60*immediate-.40*evaluate(n))*weights[z]/sum;
+    batch[i]+=(.40*immediate-.60*evaluate(n)-cost-futureCost)*weights[z]/sum;
    }
    if(!complete)break;
   }

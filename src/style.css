@@ -239,3 +239,7 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
  .moves .move-pp{font-size:11px}
  .moves .damage-value{font-size:16px}
 }
+
+/* Larger move names on both desktop and mobile. */
+.moves .move-name-row strong{font-size:20px;line-height:1.2}
+@media(max-width:680px){.moves .move-name-row strong{font-size:17px}}

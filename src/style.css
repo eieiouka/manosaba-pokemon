@@ -210,3 +210,10 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .moves .damage-value{color:#f9df69;font-size:17px;line-height:1;font-weight:800;letter-spacing:-.035em}
 .moves .damage-suffix{font-size:10px;letter-spacing:-.05em}
 @media(max-width:680px){.moves .damage-value{font-size:15px}.moves .damage-range{font-size:10px}.moves .damage-suffix{font-size:9px}.moves .move-button>div:first-child{gap:3px}}
+
+.moves .effect-tag{font-size:10px;font-weight:800;line-height:1.15;padding:2px 4px;border-radius:4px;color:#fff;white-space:nowrap;background:#595469}
+.moves .effect-tag.effective{background:#9b4359}
+.moves .effect-tag.resisted{background:#385e92}
+.moves .effect-tag.ineffective{background:#555364}
+.moves .move-meta{gap:4px}
+@media(max-width:680px){.moves .effect-tag{font-size:9px;padding:2px 3px}.moves .move-meta .type{padding:2px 4px;font-size:11px}}

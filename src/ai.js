@@ -1,4 +1,4 @@
-// Offline simultaneous-action search for 3v3 battles.
+// Simultaneous-action search for offline analysis and live CPU battles.
 import {roster,struggle} from './data.js';
 import {makeTeam,resolveSequence,canUseMove,isTrapped,damage,hitLimit,rankedStat} from './battle.js';
 export function seededRandom(seed=1){let x=seed>>>0;return ()=>{x=(Math.imul(x,1664525)+1013904223)>>>0;return x/4294967296}}
@@ -29,7 +29,7 @@ function reserveValue(s,side,i){
  const sent={...a,lockedMove:null};const attack=bestHit(s,sent,d)/d.maxHp,defense=bestHit(s,d,sent)/a.maxHp;
  return Math.min(1,attack)-Math.min(1,defense)+.35*a.hp/a.maxHp+(rankedStat(a,5)>rankedStat(d,5)?.12:0)+(a.id==='margo'&&!s.psychicTerrain?.22:0)-(a.id==='ema'&&s.teams[side].filter(c=>c.hp>0).length>1?.2:0);
 }
-function chooseReserve(s,side,list){return list.reduce((best,i)=>best==null||reserveValue(s,side,i)>reserveValue(s,side,best)?i:best,null)}
+export function chooseReserve(s,side,list){return list.reduce((best,i)=>best==null||reserveValue(s,side,i)>reserveValue(s,side,best)?i:best,null)}
 export function initialState(a,b){
  const s={teams:[makeTeam(a),makeTeam(b)],active:[0,0],turn:1,logs:[],winner:null,psychicTerrain:0,gravity:0};
  for(const side of [0,1]){const c=active(s,side);if(c.ability==='ふゆう')c.revealedAbility=true;if(!s.psychicTerrain&&c.ability==='サイコメイカー'){c.revealedAbility=true;s.psychicTerrain=c.item==='terrain'?8:5}}
@@ -96,13 +96,14 @@ function equilibrium(payoff,iterations=48){
  const value=payoff.reduce((sum,line,i)=>sum+row[i]*line.reduce((v,x,j)=>v+x*col[j],0),0);
  return {row,col,value};
 }
-export function search(s,{depth=1,samples=2,rolloutTurns=1,iterations=48,rng=Math.random}={}){
+export function search(s,{depth=1,samples=2,rolloutTurns=1,iterations=48,rng=Math.random,deadline=Infinity}={}){
  const actions=[legalActions(s,0),legalActions(s,1)];
  if(s.winner!==null||!actions[0].length||!actions[1].length)return {actions,value:evaluate(s),row:[],col:[]};
  const seeds=Array.from({length:samples},()=>Math.floor(rng()*4294967296));
  const payoff=actions[0].map(a=>actions[1].map(b=>seeds.reduce((sum,seed)=>{
+  if(Date.now()>deadline)throw new Error('search deadline');
   const random=seededRandom(seed);const next=transition(s,a,b,random);
-  const v=next.winner!==null?evaluate(next):depth>1?search(next,{depth:depth-1,samples,rolloutTurns,iterations,rng:random}).value:rollout(next,random,rolloutTurns);
+  const v=next.winner!==null?evaluate(next):depth>1?search(next,{depth:depth-1,samples,rolloutTurns,iterations,rng:random,deadline}).value:rollout(next,random,rolloutTurns);
   return sum+v;
  },0)/samples));
  return {actions,payoff,...equilibrium(payoff,iterations)};
@@ -137,4 +138,46 @@ export function rankSelections({candidates=allSelections(),opponents=allSelectio
   const row={team,wins,draws,games,rate:(wins+draws*.5)/games};onProgress(index+1,candidates.length,row);return row;
  });
  return results.sort((a,b)=>b.rate-a.rate);
+}
+
+// CPU selection is committed independently of the player's hidden selection.
+// Diverse high-performing lineups from tactical self-play, weighted by results.
+export function chooseCpuTeam(rng=Math.random){
+ const teams=[['sherry','nanoka','ema'],['sherry','hanna','ema'],['sherry','hiro','nanoka'],['sherry','nanoka','hanna'],['hanna','sherry','nanoka']];
+ return teams[draw([.48,.16,.16,.12,.08],rng)].slice();
+}
+// Replace never-seen reserves with hypotheses drawn from the public roster.
+// Only characters that have entered the field are supplied to the search.
+export function cpuView(s){
+ const visible=s.teams[0].filter((c,i)=>c.seen||i===s.active[0]);
+ const known=visible.map(c=>c.id);
+ const pool=roster.map(c=>c.id).filter(id=>!known.includes(id));
+ const need=3-visible.length, hypotheses=[];
+ function add(ids,start){if(ids.length===need){
+  const team=[...visible,...makeTeam(ids)];
+  hypotheses.push({...s,teams:[team,s.teams[1]],active:[team.findIndex(c=>c.id===s.teams[0][s.active[0]].id),s.active[1]]});return;
+ }for(let i=start;i<pool.length;i++)add([...ids,pool[i]],i+1)}
+ add([],0);return hypotheses;
+}
+export function liveCpuAction(s,{budget=850,rng=Math.random}={}){
+ const states=cpuView(s),deadline=Date.now()+budget;
+ const actions=legalActions(s,1);
+ if(!actions.length)return null;
+ let probs=actions.map(()=>0),count=0;
+ // Start with a complete sweep of possible lineups; then extend the lookahead.
+ const shuffled=states.map(state=>({state,key:rng()})).sort((a,b)=>a.key-b.key).map(x=>x.state);
+ for(const depth of [1,2,3]){
+  const next=actions.map(()=>0);let n=0;
+  for(const state of shuffled){
+   try{
+    const result=search(state,{depth,samples:depth===1?4:2,rolloutTurns:1,iterations:64,rng,deadline});
+    if(!result.col.length)continue;
+    result.col.forEach((p,i)=>next[i]+=p);n++;
+   }catch(e){if(e.message!=='search deadline')throw e;break;}
+  }
+  if(n===shuffled.length||!count&&n){probs=next;count=n}
+  if(n<shuffled.length||Date.now()>deadline)break;
+ }
+ if(!count)return quickAction(states[0]??s,1);
+ return actions[draw(probs.map(x=>x/count),rng)];
 }

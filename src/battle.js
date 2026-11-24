@@ -29,7 +29,20 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
 }
 const accuracyChance=(m,a,d,s)=>{const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
-export function start(ids){const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};for(const side of [0,1]){const c=s.teams[side][0];if(c.ability==='サイコメイカー'&&!s.psychicTerrain){c.revealedAbility=true;s.psychicTerrain=c.item==='terrain'?8:5;s.logs.push(`${side===1?'相手の':''}${c.name}のサイコメイカー！ サイコフィールドが広がった！`)}}return s}
+export function startSequence(ids){
+ const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);
+ const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};
+ const steps=[{state:structuredClone(s),delay:950}];
+ for(const side of [0,1]){
+  const c=s.teams[side][0];if(c.ability!=='サイコメイカー'||s.psychicTerrain)continue;
+  c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}のサイコメイカー！`);
+  steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
+  s.psychicTerrain=c.item==='terrain'?8:5;s.logs.push('サイコフィールドが広がった！');
+  steps.push({state:structuredClone(s),delay:850,ability});
+ }
+ return steps;
+}
+export function start(ids){return startSequence(ids).at(-1).state}
 export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:1;
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
 export function damageRange(s,a,d,m){
@@ -96,7 +109,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
     const c=current(side);
-    if(c.ability==='サイコメイカー'){if(n.psychicTerrain>0)return;c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
+    if(c.ability==='サイコメイカー'){if(n.psychicTerrain>0)return;emit(null,650);c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
     if(c.ability!=='まじょのあかし'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
     c.revealedAbility=true;
     const ability={side,name:c.name,ability:c.ability};

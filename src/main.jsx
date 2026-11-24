@@ -2,7 +2,7 @@ import React,{useState,useLayoutEffect,useEffect,useCallback,useRef} from 'react
 import {createRoot} from 'react-dom/client';
 import {createPortal} from 'react-dom';
 import {roster,types,colors,items,struggle} from './data.js';
-import {start,resolveSequence,makeTeam,canUseMove,damageRange} from './battle.js';
+import {start,startSequence,resolveSequence,makeTeam,canUseMove,damageRange} from './battle.js';
 import './style.css';
 import {unlockAttackAudio,playAttackSound} from './sounds.js';
 function Type({type}){return <span className="type" style={{background:colors[type]}}>{types[type]}</span>}
@@ -116,7 +116,7 @@ function App(){
   };
   play(0);
  };
- const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const initial=start(selected);setBattle(initial);if(initial.psychicTerrain){const side=initial.teams[0][0].ability==='サイコメイカー'?0:1;setAbilityNotice({side,ability:'サイコメイカー'});busyRef.current=true;setBusy(true);playAttackSound('activate');playbackTimer.current=setTimeout(()=>{setAbilityNotice(null);busyRef.current=false;setBusy(false)},950)}};
+ const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const steps=startSequence(selected);busyRef.current=true;setBusy(true);const play=i=>{if(i>=steps.length){setAbilityNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
  const reset=()=>{setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA POKEMON</div><h1>まのさばポケモン</h1></div><button className="badge help-button" onClick={()=>setInfo({})}>How to play</button></header>

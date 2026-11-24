@@ -1,5 +1,5 @@
 import {roster,effectiveness,items,struggle} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -22,6 +22,7 @@ export function damage(a,d,m,roll=100,critical=false,second=false){
  if(a.item==='orb')value=roundHalfDown(value,5324,4096);
  return Math.max(1,value);
 }
+const accuracyChance=(m,a,d)=>{const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
 export function start(ids){const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);return {teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null}}
 export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:1;
@@ -100,7 +101,7 @@ export function resolveSequence(s,action,rng=Math.random){
     const a=current(side),d=current(1-side),act=actions[side];
     if(a.hp<=0||d.hp<=0)continue;
     if(act.kind==='switch'){
-      a.stages=[0,0,0,0,0,0];a.lockedMove=null;a.silenced=0;a.critRank=0;
+      a.stages=[0,0,0,0,0,0];a.lockedMove=null;a.silenced=0;a.critRank=0;a.accuracyStage=0;a.evasionStage=0;
       n.active[side]=act.index;
       emit(`${a.name}を戻した！ ${current(side).name}を繰り出した！`,850,'switch');
       onEntry(side);
@@ -124,7 +125,7 @@ export function resolveSequence(s,action,rng=Math.random){
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
     let hits=0,totalDamage=0;
     for(let i=0;i<limit&&d.hp>0;i++){
-      if(rng()*100>=m.accuracy){if(!hits)emit('しかし外れてしまった！');break}
+      if(rng()*100>=accuracyChance(m,a,d)){if(!hits)emit('しかし外れてしまった！');break}
       const critical=rng()<criticalChance(m,a);
       const roll=85+Math.min(15,Math.floor(rng()*16));
       const dealt=damage(a,d,m,roll,critical,side===order[1]&&actions[1-side].kind==='move');

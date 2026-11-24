@@ -29,12 +29,11 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
 }
 const accuracyChance=(m,a,d,s)=>{const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
-export function startSequence(ids){
- const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);
+export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3)){
  const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};
  const steps=[{state:structuredClone(s),delay:950}];
  for(const side of [0,1]){
-  const c=s.teams[side][0];if(c.ability==='ふゆう'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}は宙に浮いている！`);steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});continue}if(c.ability!=='サイコメイカー'||s.psychicTerrain)continue;
+  const c=s.teams[side][0];c.seen=true;if(c.ability==='ふゆう'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}は宙に浮いている！`);steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});continue}if(c.ability!=='サイコメイカー'||s.psychicTerrain)continue;
   c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}のサイコメイカー！`);
   steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
   s.psychicTerrain=c.item==='terrain'?8:5;s.logs.push('サイコフィールドが広がった！');
@@ -109,7 +108,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const itemNotice=(c,side,item)=>({side,name:c.name,item:items[item].name});
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
-    const c=current(side);
+    const c=current(side);c.seen=true;
     if(c.ability==='ふゆう'){emit(null,650);c.revealedAbility=true;emit(`${name(c,side)}は宙に浮いている！`,950,'activate',{side,name:c.name,ability:c.ability});if(n.gravity>0)emit(`${name(c,side)}は重力の効果で地面に落とされた！`,850);return}
     if(c.ability==='サイコメイカー'){if(n.psychicTerrain>0)return;emit(null,650);c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
     if(c.ability!=='まじょのあかし'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
@@ -126,7 +125,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp)heal(c,side,Math.floor(c.maxHp/4),'sitrus')};
   const resetStages=c=>{c.stages=[0,0,0,0,0,0];c.lockedMove=null;c.silenced=0;c.critRank=0;c.accuracyStage=0;c.evasionStage=0;c.confusion=0;c.taunted=0;c.trappedBy=null};
   const reserves=side=>n.teams[side].map((c,i)=>i).filter(i=>i!==n.active[side]&&n.teams[side][i].hp>0);
-  const pickReserve=side=>{const list=reserves(side);const chosen=options.chooseSwitch?.(n,side,list);return list.includes(chosen)?chosen:list[0]};
+  const pickReserve=side=>{const list=reserves(side);const chosen=(side===1?options.cpuChooseSwitch??options.chooseSwitch:options.chooseSwitch)?.(n,side,list);return list.includes(chosen)?chosen:list[0]};
   const switchTo=(side,index)=>{const old=current(side);if(current(1-side).trappedBy===old.id)current(1-side).trappedBy=null;resetStages(old);n.active[side]=index;emit(`${name(old,side)}を戻した！ ${name(current(side),side)}を繰り出した！`,850,'switch');onEntry(side)};
   const revive=side=>{const c=current(side);if(c.hp!==0||c.ability!=='しにもどり'||c.revivalUsed||!reserves(side).length)return false;c.revivalUsed=true;c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のしにもどり！`,950,'activate',ability);c.hp=1;c.fainted=false;c.status=null;c.sleepTurns=0;resetStages(c);emit(`${name(c,side)}はHP1で復活した！`,850,'heal',ability);return true};
   const pending=n.pendingSwitch;

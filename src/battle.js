@@ -41,9 +41,24 @@ export function damageRange(s,a,d,m){
 }
 export const canUseMove=(c,i)=>i===-1?!c.moves.some((m,k)=>canUseMove(c,k)):!!c.moves[i]&&(c.pp?.[i]??c.moves[i].pp)>0&&!(c.item==='vest'&&c.moves[i].category==='status')&&(!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i);
 const moveScore=(s,a,d,m)=>m.category==='status'?(m.dance&&a.critRank<2&&a.hp===a.maxHp&&a.item==='sash'?35:0):m.soundMove&&a.silenced>0?0:Array.from({length:16},(_,i)=>damage(a,d,m,85+i,false,rankedStat(a,5)<rankedStat(d,5))).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
+const movePriority=m=>m?.priority??(m?.name==='かげうち'?1:0);
+// Prefer a priority move when both attacks can finish the current opponent reliably.
+function guaranteedKO(s,a,d,m){
+ if(m.category==='status'||!hitLimit(s,m)||!matchup(m,d)||m.soundMove&&a.silenced>0||accuracyChance(m,a,d)<100)return false;
+ if(m.sucker&&!d.moves.some((other,i)=>other.category!=='status'&&canUseMove(d,i))&&!canUseMove(d,-1))return false;
+ const dealt=damage(a,d,m,85,criticalChance(m,a)===1,false);
+ let hp=d.hp,item=d.item;
+ for(let i=0;i<hitLimit(s,m);i++){
+  if(item==='sash'&&hp===d.maxHp&&dealt>=hp){hp=1;item=null}
+  else hp=Math.max(0,hp-dealt);
+  if(hp===0)return true;
+  if(item==='sitrus'&&hp*2<=d.maxHp){hp=Math.min(d.maxHp,hp+Math.max(1,Math.floor(d.maxHp/4)));item=null}
+ }
+ return false;
+}
 export function chooseCpu(s){
  const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];
- const best=a.moves.map((m,i)=>({i,score:moveScore(s,a,d,m)})).filter(({i})=>canUseMove(a,i)).sort((a,b)=>b.score-a.score)[0];
+ const best=a.moves.map((m,i)=>({i,score:moveScore(s,a,d,m),ko:guaranteedKO(s,a,d,m),priority:movePriority(m)})).filter(({i})=>canUseMove(a,i)).sort((x,y)=>Number(y.ko)-Number(x.ko)||(x.ko&&y.ko?y.priority-x.priority:0)||y.score-x.score)[0];
  if(!best||(best.score===0&&a.lockedMove!=null)){
   const next=s.teams[1].map((c,i)=>({i,score:Math.max(...c.moves.map(m=>moveScore(s,c,d,m)))})).filter(({i,score})=>i!==s.active[1]&&s.teams[1][i].hp>0&&score>0).sort((a,b)=>b.score-a.score)[0];
   if(next)return {kind:'switch',index:next.i};
@@ -93,7 +108,7 @@ export function resolveSequence(s,action,rng=Math.random){
   if(action.kind==='switch'&&(!n.teams[0][action.index]?.hp||action.index===n.active[0]))return [];
   if(action.kind==='move'&&(!canUseMove(current(0),action.index)))return [];
   const actions=[action,chooseCpu(n)];
-  const priority=side=>actions[side].kind==='switch'?6:(current(side).moves[actions[side].index]?.priority??(current(side).moves[actions[side].index]?.name==='かげうち'?1:0));
+  const priority=side=>actions[side].kind==='switch'?6:movePriority(current(side).moves[actions[side].index]);
   const difference=priority(0)-priority(1)||rankedStat(current(0),5)-rankedStat(current(1),5);
   const order=difference>0?[0,1]:difference<0?[1,0]:rng()<.5?[0,1]:[1,0];
   const flinched=new Set();

@@ -226,15 +226,15 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .moves .damage-range{display:block;min-width:0;line-height:1.2}
 .moves .damage-value{font-size:17px}
 @media(max-width:680px){
- main:has(.arena){padding:8px 10px 0}
- main:has(.arena) header{padding-bottom:6px}
- main:has(.arena) .eyebrow{margin-bottom:3px}
- main:has(.arena) .arena{margin-top:6px!important;padding:8px 10px;gap:8px}
- main:has(.arena) .fighter{min-height:96px}
- main:has(.arena) .fighter .portrait{width:84px;height:84px}
- main:has(.arena) .log{min-height:48px;margin:6px 0;padding:5px 9px}
+ main:has(.arena){padding:12px 12px 0}
+ main:has(.arena) header{padding-bottom:8px}
+ main:has(.arena) .eyebrow{margin-bottom:4px}
+ main:has(.arena) .arena{margin-top:8px!important;padding:11px 12px;gap:12px}
+ main:has(.arena) .fighter{min-height:108px}
+ main:has(.arena) .fighter .portrait{width:92px;height:92px}
+ main:has(.arena) .log{min-height:58px;margin:8px 0;padding:6px 10px}
  main:has(.arena) .tabs{gap:6px;margin-bottom:5px}
- main:has(.arena) .moves button{padding:6px 8px;gap:3px}
+ main:has(.arena) .moves button{padding:8px 9px;gap:5px}
  .moves .move-name-row strong{font-size:14px}
  .moves .move-pp{font-size:11px}
  .moves .damage-value{font-size:16px}

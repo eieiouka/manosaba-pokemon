@@ -243,3 +243,11 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 /* Larger move names on both desktop and mobile. */
 .moves .move-name-row strong{font-size:20px;line-height:1.2}
 @media(max-width:680px){.moves .move-name-row strong{font-size:17px}}
+
+/* Enlarge the entire move card typography. */
+.moves .move-meta .type{font-size:14px}
+.moves .effect-tag{font-size:13px}
+.moves .move-pp{font-size:14px}
+.moves .damage-value{font-size:22px}
+.moves .damage-range,.moves .damage-suffix{font-size:14px}
+@media(max-width:680px){.moves .move-meta .type{font-size:13px}.moves .effect-tag{font-size:12px}.moves .move-pp{font-size:13px}.moves .damage-value{font-size:20px}.moves .damage-range,.moves .damage-suffix{font-size:12px}}

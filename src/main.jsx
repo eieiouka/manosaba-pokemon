@@ -16,8 +16,8 @@ function Portrait({c,fainted=false,onInspect}){
  useEffect(()=>()=>clearTimeout(hold.current),[]);
  const begin=e=>{if(!onInspect||e.button!==0)return;cancelHold();pressed.current=false;origin.current=[e.clientX,e.clientY];hold.current=setTimeout(()=>{pressed.current=true;onInspect(c)},500)};
  const move=e=>{if(origin.current&&Math.hypot(e.clientX-origin.current[0],e.clientY-origin.current[1])>10)cancelHold()};
- return <div className="portrait" onPointerDown={begin} onPointerMove={move} onPointerUp={cancelHold} onPointerCancel={cancelHold} onPointerLeave={cancelHold} onContextMenu={e=>e.preventDefault()} onClickCapture={e=>{if(pressed.current){e.preventDefault();e.stopPropagation();pressed.current=false}}} style={{'--accent':c.color,position:'relative',overflow:'hidden',...(ready?{background:'transparent',borderColor:'transparent'}:{})}}>
- {!ready&&<span>{c.mark}</span>}
+ return <div className="portrait" onPointerDown={begin} onPointerMove={move} onPointerUp={cancelHold} onPointerCancel={cancelHold} onPointerLeave={cancelHold} onContextMenu={e=>e.preventDefault()} onClickCapture={e=>{if(pressed.current){e.preventDefault();e.stopPropagation();pressed.current=false}}} style={{'--accent':c.color,position:'relative',overflow:'hidden',background:'transparent',borderColor:'transparent'}}>
+ 
  <img key={c.id} src={`/characters/${c.id}.png`} alt={c.name} onLoad={()=>setLoadedId(c.id)} onError={()=>setLoadedId(null)} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',visibility:ready&&!showFaint?'visible':'hidden',filter:fainted?'grayscale(1)':'none'}}/>
  {fainted&&<img key={c.id+'-down'} src={`/characters/${c.id}_down.png`} alt={c.name+'（瀕死）'} onLoad={()=>setFaintId(c.id)} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',visibility:showFaint?'visible':'hidden'}}/>}
  </div>

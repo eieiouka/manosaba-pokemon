@@ -30,15 +30,15 @@ export function damageRange(s,a,d,m){
  const hits=hitLimit(s,m);
  if(m.category==='status')return {label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
- if(!hits)return {label:'失敗',min:0,max:0};
+ if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
  const i=m.category==='physical'?2:4;
  const target=invested=>({...d,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):v+20)});
  const low=target(true),high=target(false);
  return {label,min:Math.floor(damage(a,low,m,85)*100/low.stats[0]),max:Math.floor(damage(a,high,m,100,false,!!m.latePower)*100/high.stats[0])};
 }
-export const canUseMove=(c,i)=>!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i;
-const moveScore=(s,a,d,m)=>Array.from({length:16},(_,i)=>damage(a,d,m,85+i,false,rankedStat(a,5)<rankedStat(d,5))).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
+export const canUseMove=(c,i)=>!!c.moves[i]&&!(c.item==='vest'&&c.moves[i].category==='status')&&(!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i);
+const moveScore=(s,a,d,m)=>m.soundMove&&a.silenced>0?0:Array.from({length:16},(_,i)=>damage(a,d,m,85+i,false,rankedStat(a,5)<rankedStat(d,5))).reduce((sum,v)=>sum+v,0)/16*Array.from({length:hitLimit(s,m)},(_,i)=>(m.accuracy/100)**(i+1)).reduce((sum,v)=>sum+v,0);
 export function chooseCpu(s){
  const a=s.teams[1][s.active[1]],d=s.teams[0][s.active[0]];
  const best=a.moves.map((m,i)=>({i,score:moveScore(s,a,d,m)})).filter(({i})=>canUseMove(a,i)).sort((a,b)=>b.score-a.score)[0];
@@ -99,7 +99,7 @@ export function resolveSequence(s,action,rng=Math.random){
     const a=current(side),d=current(1-side),act=actions[side];
     if(a.hp<=0||d.hp<=0)continue;
     if(act.kind==='switch'){
-      a.stages=[0,0,0,0,0,0];a.lockedMove=null;
+      a.stages=[0,0,0,0,0,0];a.lockedMove=null;a.silenced=0;
       n.active[side]=act.index;
       emit(`${a.name}を戻した！ ${current(side).name}を繰り出した！`,850,'switch');
       onEntry(side);
@@ -110,6 +110,7 @@ export function resolveSequence(s,action,rng=Math.random){
     if(items[a.item]?.choice)a.lockedMove=act.index;
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     const limit=hitLimit(n,m);
+    if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
     if(!limit){emit('しかし上手く決まらなかった！');continue}
     const e=effectiveness(m.type,d.types);
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
@@ -142,6 +143,7 @@ export function resolveSequence(s,action,rng=Math.random){
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
+    if(d.hp>0&&m.silence){emit(null,650);d.silenced=2;emit(`${name(d,1-side)}は音の技が出せなくなった！`)}
     if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){emit(null,650);d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down',null,null,{side:1-side,stat:'特攻',delta:-1})}
     if(d.hp>0&&m.lowerAtkChance&&d.stages[1]>-6&&rng()*100<m.lowerAtkChance){emit(null,650);d.stages[1]--;emit(`${name(d,1-side)}の攻撃が下がった！`,850,'down',null,null,{side:1-side,stat:'攻撃',delta:-1})}
     if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance){emit(null,650);flinched.add(1-side);}
@@ -157,6 +159,7 @@ export function resolveSequence(s,action,rng=Math.random){
   if(alive(0)&&alive(1)){
     for(const side of order){const c=current(side);if(c.item==='leftovers')heal(c,side,Math.floor(c.maxHp/16),'leftovers')}
   }
+  for(const side of [0,1]){const c=current(side);if(c.silenced>0)c.silenced--}
   n.turn++;
   if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0,n.winner===0?'victory':'defeat')}
   else if(!current(1).hp){

@@ -205,10 +205,3 @@ button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 .moves .move-name-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:3px}
 .moves .move-pp{font-size:12px;color:#c9b5fb;white-space:nowrap;font-variant-numeric:tabular-nums}
 
-/* Keep two-line damage estimates inside the existing type row. */
-.moves .damage-range{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:0;line-height:1;font-size:11px;white-space:nowrap}
-.moves .damage-range span{display:block}
-.moves .damage-range span:last-child{font-size:14px;line-height:1;letter-spacing:-.04em}
-.moves .damage-range span:first-child:not(:last-child){font-size:10px;line-height:1}
-@media(max-width:680px){.moves .damage-range span:last-child{font-size:13px}}
-.moves .move-button>div:first-child{min-height:22px;flex-wrap:nowrap;gap:4px}

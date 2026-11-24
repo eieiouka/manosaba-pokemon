@@ -71,10 +71,10 @@ export function resolveSequence(s,action,rng=Math.random){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
     const c=current(side);
-    if(c.ability!=='魔女の証'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
+    if(c.ability!=='まじょのあかし'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
     c.revealedAbility=true;
     const ability={side,name:c.name,ability:c.ability};
-    emit(`${name(c,side)}の魔女の証！`,950,'activate',ability);
+    emit(`${name(c,side)}のまじょのあかし！`,950,'activate',ability);
     const old=c.stages[3];c.stages[3]=Math.min(6,old+1);
     if(c.stages[3]>old)emit(`${name(c,side)}の特攻が上がった！`,850,'up',ability,null,{side,stat:'特攻',delta:1});
     else emit(`${name(c,side)}の特攻はこれ以上上がらない！`,850,null,ability);

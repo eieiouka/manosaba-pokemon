@@ -30,7 +30,7 @@ export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.h
 export function damageRange(s,a,d,m){
  const e=matchup(m,d.revealedAbility?d:{...d,ability:null});
  const hits=hitLimit(s,m);
- if(m.category==='status')return m.dance&&a.stages[5]>=6&&a.critRank>=3?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return m.dance&&a.stages[1]>=6&&a.stages[5]>=6&&a.critRank>=3?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
@@ -112,7 +112,8 @@ export function resolveSequence(s,action,rng=Math.random){
     if(act.index!==-1){a.pp[act.index]--;if(items[a.item]?.choice)a.lockedMove=act.index;}
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     if(m.dance){
-      if(a.stages[5]>=6&&a.critRank>=3){emit('しかし上手く決まらなかった！');continue}
+      if(a.stages[1]>=6&&a.stages[5]>=6&&a.critRank>=3){emit('しかし上手く決まらなかった！');continue}
+      if(a.stages[1]<6){a.stages[1]++;emit(`${name(a,side)}の攻撃が上がった！`,850,'up',null,null,{side,stat:'攻撃',delta:1})}
       if(a.stages[5]<6){a.stages[5]++;emit(`${name(a,side)}の素早さが上がった！`,850,'up',null,null,{side,stat:'素早さ',delta:1})}
       const delta=Math.min(2,3-a.critRank);if(delta>0){a.critRank+=delta;emit(`${name(a,side)}の急所ランクが上がった！`,850,'up',null,null,{side,stat:'急所',delta})}continue;
     }

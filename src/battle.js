@@ -1,5 +1,5 @@
 import {roster,effectiveness,items,struggle} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,confusion:0,taunted:0}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,sleepTurns:0,confusion:0,taunted:0}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -29,14 +29,14 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
 }
 const accuracyChance=(m,a,d,s)=>{const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
-export function start(ids){const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};for(const side of [0,1]){const c=s.teams[side][0];if(c.ability==='サイコメイカー'){c.revealedAbility=true;s.psychicTerrain=c.item==='terrain'?8:5;s.logs.push(`${side===1?'相手の':''}${c.name}のサイコメイカー！ サイコフィールドが広がった！`)}}return s}
+export function start(ids){const enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3);const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};for(const side of [0,1]){const c=s.teams[side][0];if(c.ability==='サイコメイカー'&&!s.psychicTerrain){c.revealedAbility=true;s.psychicTerrain=c.item==='terrain'?8:5;s.logs.push(`${side===1?'相手の':''}${c.name}のサイコメイカー！ サイコフィールドが広がった！`)}}return s}
 export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:1;
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
 export function damageRange(s,a,d,m){
  const visible=d.revealedAbility?d:{...d,ability:null};
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s);
  const hits=hitLimit(s,m);
- if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.gravity&&s.gravity>0||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.gravity&&s.gravity>0||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
@@ -96,7 +96,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
     const c=current(side);
-    if(c.ability==='サイコメイカー'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
+    if(c.ability==='サイコメイカー'){if(n.psychicTerrain>0)return;c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
     if(c.ability!=='まじょのあかし'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
     c.revealedAbility=true;
     const ability={side,name:c.name,ability:c.ability};
@@ -112,7 +112,7 @@ export function resolveSequence(s,action,rng=Math.random){
   const resetStages=c=>{c.stages=[0,0,0,0,0,0];c.lockedMove=null;c.silenced=0;c.critRank=0;c.accuracyStage=0;c.evasionStage=0;c.confusion=0;c.taunted=0};
   const reserves=side=>n.teams[side].map((c,i)=>i).filter(i=>i!==n.active[side]&&n.teams[side][i].hp>0);
   const switchTo=(side,index)=>{const old=current(side);resetStages(old);n.active[side]=index;emit(`${name(old,side)}を戻した！ ${name(current(side),side)}を繰り出した！`,850,'switch');onEntry(side)};
-  const revive=side=>{const c=current(side);if(c.hp!==0||c.ability!=='しにもどり'||c.revivalUsed||!reserves(side).length)return false;c.revivalUsed=true;c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のしにもどり！`,950,'activate',ability);c.hp=1;c.fainted=false;c.status=null;resetStages(c);emit(`${name(c,side)}はHP1で復活した！`,850,'heal',ability);return true};
+  const revive=side=>{const c=current(side);if(c.hp!==0||c.ability!=='しにもどり'||c.revivalUsed||!reserves(side).length)return false;c.revivalUsed=true;c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のしにもどり！`,950,'activate',ability);c.hp=1;c.fainted=false;c.status=null;c.sleepTurns=0;resetStages(c);emit(`${name(c,side)}はHP1で復活した！`,850,'heal',ability);return true};
   const pending=n.pendingSwitch;
   if(pending){
     if(action.kind!=='switch'||!reserves(0).includes(action.index))return [];
@@ -142,6 +142,7 @@ export function resolveSequence(s,action,rng=Math.random){
       continue;
     }
     if(flinched.has(side)){emit(`${name(a,side)}はひるんで動けなかった！`);continue}
+    if(a.status==='sleep'){if(a.sleepTurns>0){a.sleepTurns--;emit(`${name(a,side)}はぐうぐう眠っている！`,850,'sleep');continue}a.status=null;emit(`${name(a,side)}は目を覚ました！`)}
     if(a.confusion>0){a.confusion--;if(a.confusion===0)emit(`${name(a,side)}の混乱が解けた！`);else{emit(`${name(a,side)}は混乱している！`);if(rng()<1/3){const selfDamage=damage({...a,item:null},a,{type:'normal',category:'physical',power:40,struggle:true},100);a.hp=Math.max(0,a.hp-selfDamage);emit(`${name(a,side)}はわけもわからず自分を攻撃した！`,850,'hit');faint(a,side);continue}}}
     const m=act.index===-1?struggle:a.moves[act.index];if(m?.category==='status'&&a.taunted>0){emit(`${name(a,side)}はちょうはつされて変化技が出せない！`);continue}if(!m||!canUseMove(a,act.index))continue;
     if(act.index!==-1){a.pp[act.index]--;if(items[a.item]?.choice)a.lockedMove=act.index;}
@@ -150,9 +151,9 @@ export function resolveSequence(s,action,rng=Math.random){
     if(terrainBlocked(n,m,d)){emit('サイコフィールドに守られた！');continue}
     if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
     if(m.gravity){if(n.gravity>0){emit('しかし上手く決まらなかった！');continue}n.gravity=5;emit('重力が強くなった！');continue}
-    if(m.confuse||m.taunt){
+    if(m.sleep||m.confuse||m.taunt){
       if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
-      if(m.confuse){if(d.confusion>0){emit('しかし上手く決まらなかった！');continue}d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850);if(reserves(side).length){if(side===1)switchTo(1,reserves(1)[0]);else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
+      if(m.sleep||m.confuse){if(m.sleep?!!d.status:d.confusion>0){emit('しかし上手く決まらなかった！');continue}if(m.sleep){d.status='sleep';d.sleepTurns=1+Math.floor(rng()*3);emit(`${name(d,1-side)}は眠ってしまった！`,850,'sleep')}else{d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850)}if(reserves(side).length){if(side===1)switchTo(1,reserves(1)[0]);else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
       else{if(d.taunted>0){emit('しかし上手く決まらなかった！');continue}d.taunted=3;emit(`${name(d,1-side)}はちょうはつに乗った！`)}continue;
     }
     if(m.dance){

@@ -1,6 +1,6 @@
 // Simultaneous-action search for offline analysis and live CPU battles.
 import {roster,struggle} from './data.js';
-import {makeTeam,resolveSequence,canUseMove,isTrapped,damage,hitLimit,rankedStat,chooseCpu,startSequence} from './battle.js';
+import {makeTeam,resolveSequence,canUseMove,isTrapped,damage,hitLimit,rankedStat,chooseCpu,startSequence,canSwapStatus} from './battle.js';
 export function seededRandom(seed=1){let x=seed>>>0;return ()=>{x=(Math.imul(x,1664525)+1013904223)>>>0;return x/4294967296}}
 const active=(s,i)=>s.teams[i][s.active[i]];
 const priority=m=>m?.priority??(m?.name==='かげうち'?1:0);
@@ -40,7 +40,7 @@ function material(s,side){
  return s.teams[side].reduce((v,c,i)=>{
  if(c.hp<=0)return v;
  const on=i===s.active[side],fraction=c.hp/c.maxHp;
- return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
+ return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='poison'?.12:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
  },0);
 }
 export function evaluate(s){
@@ -82,7 +82,7 @@ function quickAction(s,side){
    if(m.category==='status'){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
-    if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const hp=Math.max(0,d.hp/d.maxHp-a.hp/a.maxHp);const status=a.status&&!d.status?.35:0;if(gain+hp+status>0)v=.15+gain+hp*1.4+status;}
+    if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const hp=Math.max(0,d.hp/d.maxHp-a.hp/a.maxHp);const status=canSwapStatus(a,d)?.35:0;if(gain+hp+status>0)v=.15+gain+hp*1.4+status;}
     if(m.calmMind&&(a.stages[3]<6||a.stages[4]<6)&&best<d.hp&&incoming<a.hp*.65)v=.58+Math.min(.35,best/d.hp);
     if(m.protect&&d.status==='toxic'&&a.protectTurn!==s.turn-1&&incoming>0)v=.45+Math.min(.5,(d.toxicCounter??0)*.09);
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);

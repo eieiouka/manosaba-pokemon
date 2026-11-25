@@ -15,7 +15,7 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
  if(!e)return 0;
  const i=m.category==='physical'?1:3;
  const attacker=m.foulPlay?{...d,item:a.item,ability:a.ability}:a;
- const attack=rankedStat(attacker,i,critical&&(attacker.stages?.[i]??0)<0);
+ const attack=m.puppet?Math.max(d.stats[1],d.stats[3]):rankedStat(attacker,i,critical&&(attacker.stages?.[i]??0)<0);
  const defense=rankedStat(d,i+1,critical&&(d.stages?.[i+1]??0)>0);
  const power=s?.psychicTerrain&&m.type==='psychic'&&grounded(a,s)?roundHalfDown(m.power,5325,4096):m.power;
  let value=Math.floor(Math.floor(22*power*(m.latePower&&second?2:1)*attack/defense)/50)+2;
@@ -64,7 +64,7 @@ export function damageRange(s,a,d,m){
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
  const i=m.category==='physical'?2:4;
- const target=invested=>({...d,ability:d.revealedAbility?d.ability:null,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):m.foulPlay&&k===1&&!invested?Math.floor((v+52)*1.1):v+20)});
+ const target=invested=>({...d,ability:d.revealedAbility?d.ability:null,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):(m.foulPlay&&k===1||m.puppet&&(k===1||k===3))&&!invested?Math.floor((v+52)*1.1):v+20)});
  const low=target(true),high=target(false);
  return {label,min:Math.floor(damage(a,low,m,85,criticalChance(m,a)===1,false,s)*100/low.stats[0]),max:Math.floor(damage(a,high,m,100,criticalChance(m,a)===1,false,s)*100/high.stats[0])};
 }

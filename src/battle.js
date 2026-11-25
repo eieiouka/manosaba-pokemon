@@ -8,10 +8,15 @@ export function rankedStat(c,index,ignore=false){
 }
 const roundHalfDown=(value,numerator,denominator)=>Math.floor((value*numerator+Math.floor((denominator-1)/2))/denominator);
 const grounded=(c,s)=>!!s?.gravity||(!c.types.includes('flying')&&c.ability!=='ふゆう');
-const matchup=(m,d,s)=>m.struggle?1:m.type==='ground'?(grounded(d,s)?effectiveness(m.type,d.types.filter(t=>t!=='flying')):0):effectiveness(m.type,d.types);
+const typeMatchup=(m,d,s)=>m.struggle?1:m.type==='ground'&&s?.gravity?effectiveness(m.type,d.types.filter(t=>t!=='flying')):effectiveness(m.type,d.types);
+const matchup=(m,d,s,a=null)=>{
+ if(m.struggle)return 1;
+ if(m.type==='ground'&&d.ability==='ふゆう'&&!s?.gravity)return 0;
+ return a?.ability==='むこせい'||d.ability==='むこせい'?1:typeMatchup(m,d,s);
+};
 const terrainBlocked=(s,m,d)=>!!s?.psychicTerrain&&!m.protect&&movePriority(m)>0&&grounded(d,s);
 export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
- const e=matchup(m,d,s);
+ const e=matchup(m,d,s,a);
  if(!e)return 0;
  const i=m.category==='physical'?1:3;
  const attacker=m.foulPlay?{...d,item:a.item,ability:a.ability}:a;
@@ -65,7 +70,7 @@ export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.
 const canBeneficialSwap=(a,d)=>d.hp*a.maxHp>a.hp*d.maxHp||a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||!!a.status&&!d.status||(a.confusion??0)>(d.confusion??0)||(a.drowsy??0)>(d.drowsy??0);
 export function damageRange(s,a,d,m){
  const visible=d.revealedAbility?d:{...d,ability:null};
- const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s);
+ const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
  const hits=hitLimit(s,m);
  if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
@@ -85,7 +90,7 @@ const moveScore=(s,a,d,m)=>{
 const movePriority=m=>m?.priority??(m?.name==='かげうち'?1:0);
 // Prefer a priority move when both attacks can finish the current opponent reliably.
 function guaranteedKO(s,a,d,m){
- if(m.category==='status'||m.contact&&d.ability==='げんし'||!hitLimit(s,m)||terrainBlocked(s,m,d)||!matchup(m,d,s)||m.soundMove&&a.silenced>0||accuracyChance(m,a,d,s)<100)return false;
+ if(m.category==='status'||m.contact&&d.ability==='げんし'||!hitLimit(s,m)||terrainBlocked(s,m,d)||!matchup(m,d,s,a)||m.soundMove&&a.silenced>0||accuracyChance(m,a,d,s)<100)return false;
  if(m.sucker&&!d.moves.some((other,i)=>other.category!=='status'&&canUseMove(d,i))&&!canUseMove(d,-1))return false;
  const dealt=damage(a,d,m,85,criticalChance(m,a)===1,false,s);
  let hp=d.hp,item=d.item;
@@ -274,7 +279,13 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     const limit=m.multiHit==='silver'?(a.item==='dice'?6:1+Math.floor(rng()*6)):hitLimit(n,m);
     if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
     if(!limit){emit('しかし上手く決まらなかった！');continue}
-    const e=matchup(m,d,n);
+    const e=matchup(m,d,n,a);
+    if(typeMatchup(m,d,n)!==1&&e===1){
+      for(const [holder,holderSide] of [[a,side],[d,1-side]])if(holder.ability==='むこせい'&&!holder.revealedAbility){
+        holder.revealedAbility=true;const ability={side:holderSide,name:holder.name,ability:holder.ability};
+        emit(null,650);emit(`${name(holder,holderSide)}のむこせい！`,950,'activate',ability);
+      }
+    }
     if(m.type==='ground'&&d.ability==='ふゆう'&&!n.gravity){d.revealedAbility=true;emit(`${name(d,1-side)}のふゆう！`,950,'activate',{side:1-side,name:d.name,ability:d.ability})}
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
     let hits=0,totalDamage=0;

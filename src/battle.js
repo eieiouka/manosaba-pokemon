@@ -282,7 +282,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   for(const side of order){const c=current(side);if(c.hp>0&&c.status==='burn'){c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/16)));emit(`${name(c,side)}はやけどのダメージを受けた！`,850,'burn');faint(c,side)}}
   for(const side of order){
     const c=current(side);
-    if(c.hp>0&&c.status==='toxic'){c.toxicCounter=Math.min(15,(c.toxicCounter??0)+1);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp*c.toxicCounter/16)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
+    if(c.hp>0&&c.status==='toxic'){emit(null,650);c.toxicCounter=Math.min(15,(c.toxicCounter??0)+1);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp*c.toxicCounter/16)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
     if(c.hp>0&&c.drowsy>0&&!--c.drowsy&&!c.status){c.status='sleep';c.sleepTurns=1+Math.floor(rng()*3);emit(`${name(c,side)}は眠ってしまった！`,850,'sleep')}
   }
   for(const side of [0,1]){const c=current(side);if(c.silenced>0)c.silenced--;if(c.taunted>0&&!--c.taunted)emit(`${name(c,side)}のちょうはつが解けた！`)}

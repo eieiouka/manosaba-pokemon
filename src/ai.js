@@ -1,6 +1,6 @@
 // Simultaneous-action search for offline analysis and live CPU battles.
 import {roster,struggle} from './data.js';
-import {makeTeam,resolveSequence,canUseMove,isTrapped,damage,hitLimit,rankedStat,chooseCpu} from './battle.js';
+import {makeTeam,resolveSequence,canUseMove,isTrapped,damage,hitLimit,rankedStat,chooseCpu,startSequence} from './battle.js';
 export function seededRandom(seed=1){let x=seed>>>0;return ()=>{x=(Math.imul(x,1664525)+1013904223)>>>0;return x/4294967296}}
 const active=(s,i)=>s.teams[i][s.active[i]];
 const priority=m=>m?.priority??(m?.name==='かげうち'?1:0);
@@ -26,14 +26,12 @@ function bestHit(s,a,d){
 }
 function reserveValue(s,side,i){
  const a=s.teams[side][i],d=active(s,1-side);if(d.hp<=0)return a.hp/a.maxHp+(a.id==='ema'&&s.teams[side].filter(c=>c.hp>0).length>1?-.6:0);
- const sent={...a,lockedMove:null};const attack=bestHit(s,sent,d)/d.maxHp,defense=bestHit(s,d,sent)/a.maxHp;
+ const sent={...a,lockedMove:null};const weakened=a.ability==='せんのう'?{...d,stages:d.stages.map((v,i)=>i===1||i===3?Math.max(-6,v-1):v)}:d;const attack=bestHit(s,sent,weakened)/d.maxHp,defense=bestHit(s,weakened,sent)/a.maxHp;
  return Math.min(1,attack)-Math.min(1,defense)+.35*a.hp/a.maxHp+(rankedStat(a,5)>rankedStat(d,5)?.12:0)+(a.id==='margo'&&!s.psychicTerrain?.22:0)-(a.id==='ema'&&s.teams[side].filter(c=>c.hp>0).length>1?.2:0);
 }
 export function chooseReserve(s,side,list){return list.reduce((best,i)=>best==null||reserveValue(s,side,i)>reserveValue(s,side,best)?i:best,null)}
 export function initialState(a,b){
- const s={teams:[makeTeam(a),makeTeam(b)],active:[0,0],turn:1,logs:[],winner:null,psychicTerrain:0,gravity:0};
- for(const side of [0,1]){const c=active(s,side);if(c.ability==='ふゆう')c.revealedAbility=true;if(!s.psychicTerrain&&c.ability==='サイコメイカー'){c.revealedAbility=true;s.psychicTerrain=c.item==='terrain'?8:5}}
- return s;
+ return startSequence(a,b).at(-1).state;
 }
 export function transition(s,a,b,rng){
  const steps=resolveSequence(s,a,rng,{opponentAction:b,chooseSwitch:chooseReserve,fast:true});return steps.at(-1)?.state??s;

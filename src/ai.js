@@ -40,7 +40,7 @@ function material(s,side){
  return s.teams[side].reduce((v,c,i)=>{
  if(c.hp<=0)return v;
  const on=i===s.active[side],fraction=c.hp/c.maxHp;
- return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
+ return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
  },0);
 }
 export function evaluate(s){
@@ -76,12 +76,15 @@ function quickAction(s,side){
  let out=actions[0],max=-Infinity;
  for(const x of actions){
   let v;
-  if(x.kind==='switch'){v=reserveValue(s,side,x.index)-reserveValue(s,side,s.active[side])-.35;if(best>=d.hp)v-=.8}
+  if(x.kind==='switch'){v=reserveValue(s,side,x.index)-reserveValue(s,side,s.active[side])-.35;if(a.drowsy===1)v+=.65;if(best>=d.hp)v-=.8}
   else{
    const m=x.index<0?struggle:a.moves[x.index];
    if(m.category==='status'){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
+    if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
+    if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;
+    if(m.yawn&&!d.status&&!d.drowsy)v=.45;
     if(m.gravity&&!s.gravity&&s.psychicTerrain>2&&s.teams[side].some(c=>c.id==='hanna'&&c.hp>0))v=.55;
     if(m.confuse&&!d.confusion&&!(m.soundMove&&a.silenced>0)&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.55*Math.min(1,m.accuracy/100*(s.gravity?5/3:1));
     if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.gravity))v=.35;

@@ -40,7 +40,7 @@ const trialCharacter=(id,name,short,color)=>({
 });
 export const nextRoster=[
  {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison'],item:'leftovers',ability:'せんのう',abilityDescription:'場に出るたび、相手の攻撃と特攻を1段階ずつ下げる。',base:[77,52,83,70,72,58],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('どくどく','poison','status',0,90,{toxic:true,description:'相手をもうどくにする。どくタイプが使うと必中。'}),move('まもる','normal','status',0,100,{protect:true,priority:4,description:'先制して相手の技から身を守る。連続で成功すると次の成功率が1/3ずつ下がる。'}),move('つきのひかり','fairy','status',0,100,{recover:true,description:'自分の最大HPの1/2を回復する。'}),move('あやつりにんぎょう','ghost','physical',100,100,{contact:false,puppet:true,description:'相手の攻撃と特攻の実数値のうち高い方を使って攻撃する。相手の攻撃・特攻ランクの変化は無視する。'})]},
- trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),
+ {...trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),types:['normal'],moves:[move('いれかわり','normal','status',0,100,{swapStages:true,description:'相手と自分の能力ランクをすべて入れ替える。命中・回避・急所ランクも対象。'}),...trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7').moves.slice(1)]},
  trialCharacter('noa','城ヶ崎ノア','ノア','#e3b6c8'),
  trialCharacter('reia','蓮見レイア','レイア','#e0b683'),
  trialCharacter('arisa','紫藤アリサ','アリサ','#ba9dd3'),

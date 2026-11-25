@@ -1,5 +1,5 @@
 // 仮設定。種族値は HP / A / B / C / D / S の順。
-const ppTable={'まじょごろし':10,'マジカルフレイム':10,'ハイパーボイス':10,'あくのはどう':15,'ゴリラパンチ':10,'じゃれつく':10,'じごくづき':15,'マッハパンチ':30,'リーフブレード':15,'つじぎり':15,'かぜのやいば':5,'ふいうち':5,'しっとのまい':20,'サイコカッター':20,'インファイト':5,'ひかきぼう':10,'とんぼがえり':20,'アイアンヘッド':15,'シャドーボール':15,'かげうち':30,'かみくだく':15,'どくづき':20,'ラスターカノン':10,'10まんボルト':15,'だいちのちから':10,'げんわくのこえ':10,'イカサマ':15,'じゅうりょく':5,'ちょうはつ':20,'シルバーバレット':5,'かげぬい':10,'シャドークロー':15,'どくどく':10,'あくび':10,'まもる':10,'つきのひかり':5,'しんそく':5,'つるぎのまい':20};
+const ppTable={'まじょごろし':10,'マジカルフレイム':10,'ハイパーボイス':10,'あくのはどう':15,'ゴリラパンチ':10,'じゃれつく':10,'じごくづき':15,'マッハパンチ':30,'リーフブレード':15,'つじぎり':15,'かぜのやいば':5,'ふいうち':5,'しっとのまい':20,'サイコカッター':20,'インファイト':5,'ひかきぼう':10,'とんぼがえり':20,'アイアンヘッド':15,'シャドーボール':15,'かげうち':30,'かみくだく':15,'どくづき':20,'ラスターカノン':10,'10まんボルト':15,'だいちのちから':10,'げんわくのこえ':10,'イカサマ':15,'じゅうりょく':5,'ちょうはつ':20,'シルバーバレット':5,'かげぬい':10,'シャドークロー':15,'どくどく':10,'あくび':10,'まもる':10,'いれかわり':5,'めいそう':20,'アシストパワー':10,'ムーンフォース':15,'つきのひかり':5,'しんそく':5,'つるぎのまい':20};
 const nonContactMoves=new Set(['かぜのやいば','シルバーバレット','かげぬい']);
 const move=(name,type,category,power,accuracy=100,extra={})=>({name,type,category,power,accuracy,pp:Math.floor((ppTable[name]??10)*8/5),contact:category==='physical'&&!nonContactMoves.has(name),...extra});
 export const struggle=move('わるあがき','normal','physical',50,100,{pp:null,struggle:true,description:'使える技がないときだけ使う。最大HPの1/4の反動を受ける。'});
@@ -13,6 +13,7 @@ export const items={
  orb:{name:'いのちのたま',description:'攻撃技のダメージが1.3倍になる。攻撃が命中すると、技の終了後に最大HPの1/10を失う。'},
  leftovers:{name:'たべのこし',description:'毎ターン終了時に最大HPの1/16を回復する。'},
  dice:{name:'いかさまダイス',description:'シルバーバレットの連続攻撃回数を6回に固定する。'},
+ psychicSeed:{name:'サイコシード',description:'サイコフィールド中に特防が1段階上がる。一度使うとなくなる。'},
  terrain:{name:'グランドコート',description:'自分が展開するフィールドの持続時間を5ターンから8ターンに延ばす。'},
  helmet:{name:'ゴツゴツメット',description:'相手の接触技を受けるたび、相手の最大HPの1/6のダメージを与える。'},
  vest:{name:'とつげきチョッキ',description:'特防が1.5倍になるが、変化技を選べなくなる。',stat:4},
@@ -40,7 +41,7 @@ const trialCharacter=(id,name,short,color)=>({
 });
 export const nextRoster=[
  {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison'],item:'leftovers',ability:'せんのう',abilityDescription:'場に出るたび、相手の攻撃と特攻を1段階ずつ下げる。',base:[77,52,83,70,72,58],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('どくどく','poison','status',0,90,{toxic:true,description:'相手をもうどくにする。どくタイプが使うと必中。'}),move('まもる','normal','status',0,100,{protect:true,priority:4,description:'先制して相手の技から身を守る。連続で成功すると次の成功率が1/3ずつ下がる。'}),move('つきのひかり','fairy','status',0,100,{recover:true,description:'自分の最大HPの1/2を回復する。'}),move('あやつりにんぎょう','ghost','physical',100,100,{contact:false,puppet:true,description:'相手の攻撃と特攻の実数値のうち高い方を使って攻撃する。相手の攻撃・特攻ランクの変化は無視する。'})]},
- {...trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),types:['normal'],moves:[move('いれかわり','normal','status',0,100,{swapStages:true,description:'相手と自分の能力ランクをすべて入れ替える。命中・回避・急所ランクも対象。'}),...trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7').moves.slice(1)]},
+ {...trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),types:['normal'],item:'psychicSeed',points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('いれかわり','normal','status',0,100,{swapStages:true,description:'相手とHP割合・能力ランク・状態異常を、自分に有利な項目だけ入れ替える。'}),move('めいそう','psychic','status',0,100,{calmMind:true,description:'自分の特攻と特防を1段階ずつ上げる。'}),move('アシストパワー','psychic','special',20,100,{storedPower:true,description:'自分の能力ランクの上昇1段階につき威力が20上がる。急所ランクは含まない。'}),move('ムーンフォース','fairy','special',95,100,{lowerSpAChance:30,description:'30%の確率で相手の特攻を1段階下げる。'})]},
  trialCharacter('noa','城ヶ崎ノア','ノア','#e3b6c8'),
  trialCharacter('reia','蓮見レイア','レイア','#e0b683'),
  trialCharacter('arisa','紫藤アリサ','アリサ','#ba9dd3'),

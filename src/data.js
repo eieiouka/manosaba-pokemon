@@ -14,6 +14,7 @@ export const items={
  leftovers:{name:'たべのこし',description:'毎ターン終了時に最大HPの1/16を回復する。'},
  dice:{name:'いかさまダイス',description:'シルバーバレットの連続攻撃回数を6回に固定する。'},
  terrain:{name:'グランドコート',description:'自分が展開するフィールドの持続時間を5ターンから8ターンに延ばす。'},
+ helmet:{name:'ゴツゴツメット',description:'相手の接触技を受けるたび、相手の最大HPの1/6のダメージを与える。'},
  vest:{name:'とつげきチョッキ',description:'特防が1.5倍になるが、変化技を選べなくなる。',stat:4},
  sitrus:{name:'オボンのみ',description:'HPが最大HPの半分以下になると、最大HPの1/4を回復する。一度使うとなくなる。'}
 };
@@ -38,7 +39,7 @@ const trialCharacter=(id,name,short,color)=>({
  ]
 });
 export const nextRoster=[
- {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison']},
+ {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison'],item:'helmet',ability:'せんのう',abilityDescription:'場に出るたび、相手の攻撃と特攻を1段階ずつ下げる。',base:[77,52,83,70,72,58],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100]},
  trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),
  trialCharacter('noa','城ヶ崎ノア','ノア','#e3b6c8'),
  trialCharacter('reia','蓮見レイア','レイア','#e0b683'),

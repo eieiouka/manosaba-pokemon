@@ -40,7 +40,7 @@ function material(s,side){
  return s.teams[side].reduce((v,c,i)=>{
  if(c.hp<=0)return v;
  const on=i===s.active[side],fraction=c.hp/c.maxHp;
- return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
+ return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
  },0);
 }
 export function evaluate(s){
@@ -66,7 +66,7 @@ function terrainValue(s,side){
    const hit=attackValue({...s,psychicTerrain:0},d,c,m);
    threat=Math.max(threat,Math.min(1,hit/c.hp));
   }
-  benefit+=threat*(c.moves.some(m=>m.dance||m.swordsDance)?.10:.055);
+  benefit+=threat*(c.moves.some(m=>m.dance||m.swordsDance||m.calmMind)?.10:.055);
  }
  return duration*benefit;
 }
@@ -82,14 +82,15 @@ function quickAction(s,side){
    if(m.category==='status'){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
-    if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const rank=c=>c.stages.reduce((sum,x,i)=>sum+x*weights[i],0)+.08*((c.accuracyStage??0)+(c.evasionStage??0)+(c.critRank??0));const gain=rank(d)-rank(a);if(gain>0)v=.35+gain;}
+    if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const hp=Math.max(0,d.hp/d.maxHp-a.hp/a.maxHp);const status=a.status&&!d.status?.35:0;if(gain+hp+status>0)v=.15+gain+hp*1.4+status;}
+    if(m.calmMind&&(a.stages[3]<6||a.stages[4]<6)&&best<d.hp&&incoming<a.hp*.65)v=.58+Math.min(.35,best/d.hp);
     if(m.protect&&d.status==='toxic'&&a.protectTurn!==s.turn-1&&incoming>0)v=.45+Math.min(.5,(d.toxicCounter??0)*.09);
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
     if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;
     if(m.yawn&&!d.status&&!d.drowsy)v=.45;
     if(m.gravity&&!s.gravity&&s.psychicTerrain>2&&s.teams[side].some(c=>c.id==='hanna'&&c.hp>0))v=.55;
     if(m.confuse&&!d.confusion&&!(m.soundMove&&a.silenced>0)&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.55*Math.min(1,m.accuracy/100*(s.gravity?5/3:1));
-    if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.gravity))v=.35;
+    if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.calmMind||t.gravity))v=.35;
    }else{const dmg=attackValue(s,a,d,m);v=dmg/Math.max(1,d.hp);if(dmg>=d.hp&&priority(m)>0)v+=.7}
   }
   if(v>max){max=v;out=x}

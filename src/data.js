@@ -1,5 +1,5 @@
 // 仮設定。種族値は HP / A / B / C / D / S の順。
-const ppTable={'まじょごろし':10,'マジカルフレイム':10,'ハイパーボイス':10,'あくのはどう':15,'ゴリラパンチ':10,'じゃれつく':10,'じごくづき':15,'マッハパンチ':30,'リーフブレード':15,'つじぎり':15,'かぜのやいば':5,'ふいうち':5,'しっとのまい':20,'サイコカッター':20,'インファイト':5,'ひかきぼう':10,'とんぼがえり':20,'アイアンヘッド':15,'シャドーボール':15,'かげうち':30,'かみくだく':15,'どくづき':20,'ラスターカノン':10,'10まんボルト':15,'だいちのちから':10,'げんわくのこえ':10,'イカサマ':15,'じゅうりょく':5,'ちょうはつ':20,'シルバーバレット':5,'かげぬい':10,'シャドークロー':15,'どくどく':10,'あくび':10,'つきのひかり':5,'しんそく':5,'つるぎのまい':20};
+const ppTable={'まじょごろし':10,'マジカルフレイム':10,'ハイパーボイス':10,'あくのはどう':15,'ゴリラパンチ':10,'じゃれつく':10,'じごくづき':15,'マッハパンチ':30,'リーフブレード':15,'つじぎり':15,'かぜのやいば':5,'ふいうち':5,'しっとのまい':20,'サイコカッター':20,'インファイト':5,'ひかきぼう':10,'とんぼがえり':20,'アイアンヘッド':15,'シャドーボール':15,'かげうち':30,'かみくだく':15,'どくづき':20,'ラスターカノン':10,'10まんボルト':15,'だいちのちから':10,'げんわくのこえ':10,'イカサマ':15,'じゅうりょく':5,'ちょうはつ':20,'シルバーバレット':5,'かげぬい':10,'シャドークロー':15,'どくどく':10,'あくび':10,'まもる':10,'つきのひかり':5,'しんそく':5,'つるぎのまい':20};
 const nonContactMoves=new Set(['かぜのやいば','シルバーバレット','かげぬい']);
 const move=(name,type,category,power,accuracy=100,extra={})=>({name,type,category,power,accuracy,pp:Math.floor((ppTable[name]??10)*8/5),contact:category==='physical'&&!nonContactMoves.has(name),...extra});
 export const struggle=move('わるあがき','normal','physical',50,100,{pp:null,struggle:true,description:'使える技がないときだけ使う。最大HPの1/4の反動を受ける。'});
@@ -39,7 +39,7 @@ const trialCharacter=(id,name,short,color)=>({
  ]
 });
 export const nextRoster=[
- {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison'],item:'helmet',ability:'せんのう',abilityDescription:'場に出るたび、相手の攻撃と特攻を1段階ずつ下げる。',base:[77,52,83,70,72,58],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('どくどく','poison','status',0,90,{toxic:true,description:'相手をもうどくにする。どくタイプが使うと必中。'}),move('あくび','normal','status',0,100,{yawn:true,description:'相手をねむけ状態にし、次のターン終了時に眠らせる。交代すると解除される。'}),move('つきのひかり','fairy','status',0,100,{recover:true,description:'自分の最大HPの1/2を回復する。'}),move('あやつりにんぎょう','ghost','physical',100,100,{contact:false,puppet:true,description:'相手の攻撃と特攻の実数値のうち高い方を使って攻撃する。相手の攻撃・特攻ランクの変化は無視する。'})]},
+ {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison'],item:'helmet',ability:'せんのう',abilityDescription:'場に出るたび、相手の攻撃と特攻を1段階ずつ下げる。',base:[77,52,83,70,72,58],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('どくどく','poison','status',0,90,{toxic:true,description:'相手をもうどくにする。どくタイプが使うと必中。'}),move('まもる','normal','status',0,100,{protect:true,priority:4,description:'先制して相手の技から身を守る。連続で成功すると次の成功率が1/3ずつ下がる。'}),move('つきのひかり','fairy','status',0,100,{recover:true,description:'自分の最大HPの1/2を回復する。'}),move('あやつりにんぎょう','ghost','physical',100,100,{contact:false,puppet:true,description:'相手の攻撃と特攻の実数値のうち高い方を使って攻撃する。相手の攻撃・特攻ランクの変化は無視する。'})]},
  trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),
  trialCharacter('noa','城ヶ崎ノア','ノア','#e3b6c8'),
  trialCharacter('reia','蓮見レイア','レイア','#e0b683'),

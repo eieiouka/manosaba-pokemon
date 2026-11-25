@@ -161,7 +161,10 @@ export function rankSelections({candidates=allSelections(),opponents=allSelectio
 // Diverse high-performing lineups from tactical self-play, weighted by results.
 export function chooseCpuTeam(rng=Math.random){
  const teams=[['sherry','nanoka','ema'],['sherry','hanna','ema'],['sherry','hiro','nanoka'],['sherry','nanoka','hanna'],['hanna','sherry','nanoka']];
- return teams[draw([.48,.16,.16,.12,.08],rng)].slice();
+ if(teams.every(team=>team.every(id=>roster.some(c=>c.id===id))))return teams[draw([.48,.16,.16,.12,.08],rng)].slice();
+ const ids=roster.map(c=>c.id);
+ for(let i=ids.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
+ return ids.slice(0,3);
 }
 // Replace never-seen reserves with hypotheses drawn from the public roster.
 // Only characters that have entered the field are supplied to the search.

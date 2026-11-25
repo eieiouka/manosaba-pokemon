@@ -137,7 +137,7 @@ function App(){
   };
   play(0);
  };
- const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const steps=startSequence(selected,chooseCpuTeam());busyRef.current=true;setBusy(true);const play=i=>{if(i>=steps.length){setAbilityNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
+ const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const steps=startSequence(selected,chooseCpuTeam());busyRef.current=true;setBusy(true);const play=i=>{if(i>=steps.length){setAbilityNotice(null);setItemNotice(null);setStatNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);setItemNotice(step.itemNotice??null);setStatNotice(step.statNotice??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
  const reset=()=>{setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  const trapped=!!battle&&!battle.pendingSwitch&&isTrapped(battle,0);

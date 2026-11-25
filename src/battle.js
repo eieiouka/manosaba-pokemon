@@ -67,7 +67,8 @@ export function start(ids){return startSequence(ids).at(-1).state}
 export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:m.multiHit==='silver'?6:1;
 export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return !!c.trappedBy&&c.hp>0&&!c.types.includes('ghost')&&other.hp>0&&c.trappedBy===other.id};
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
-const canBeneficialSwap=(a,d)=>d.hp*a.maxHp>a.hp*d.maxHp||a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||!!a.status&&!d.status||(a.confusion??0)>(d.confusion??0)||(a.drowsy??0)>(d.drowsy??0);
+export const canSwapStatus=(a,d)=>!!a.status&&(!d.status||a.status==='toxic'&&d.status==='poison');
+const canBeneficialSwap=(a,d)=>d.hp*a.maxHp>a.hp*d.maxHp||a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||canSwapStatus(a,d)||(a.confusion??0)>(d.confusion??0)||(a.drowsy??0)>(d.drowsy??0);
 export function damageRange(s,a,d,m){
  const visible=d.revealedAbility?d:{...d,ability:null};
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
@@ -232,9 +233,9 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
         const ah=a.hp,dh=d.hp;a.hp=Math.min(a.maxHp,Math.max(1,Math.floor(dh*a.maxHp/d.maxHp)));d.hp=Math.min(d.maxHp,Math.max(1,Math.floor(ah*d.maxHp/a.maxHp)));
         swapped=true;emit(`${name(a,side)}と${name(d,1-side)}のHP割合が入れ替わった！`,950,'heal');berry(a,side);berry(d,1-side);
       }
-      if(a.status&&!d.status){
+      if(canSwapStatus(a,d)){
         for(const key of ['status','sleepTurns','toxicCounter']){[a[key],d[key]]=[d[key],a[key]]}
-        swapped=true;emit(`${name(a,side)}の状態異常が${name(d,1-side)}に移った！`,950);
+        swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);
       }
       for(const [key,label] of [['confusion','混乱'],['drowsy','ねむけ']]){
         if((a[key]??0)>(d[key]??0)){[a[key],d[key]]=[d[key]??0,a[key]??0];swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の${label}が入れ替わった！`,850)}
@@ -351,6 +352,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   for(const side of order){const c=current(side);if(c.hp>0&&c.status==='burn'){c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/16)));emit(`${name(c,side)}はやけどのダメージを受けた！`,850,'burn');faint(c,side)}}
   for(const side of order){
     const c=current(side);
+    if(c.hp>0&&c.status==='poison'){emit(null,650);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/8)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
     if(c.hp>0&&c.status==='toxic'){emit(null,650);c.toxicCounter=Math.min(15,(c.toxicCounter??0)+1);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp*c.toxicCounter/16)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
     if(c.hp>0&&c.drowsy>0&&!--c.drowsy&&!c.status){c.status='sleep';c.sleepTurns=1+Math.floor(rng()*3);emit(`${name(c,side)}は眠ってしまった！`,850,'sleep')}
   }

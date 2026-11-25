@@ -38,7 +38,7 @@ const trialCharacter=(id,name,short,color)=>({
  ]
 });
 export const nextRoster=[
- trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),
+ {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison']},
  trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),
  trialCharacter('noa','城ヶ崎ノア','ノア','#e3b6c8'),
  trialCharacter('reia','蓮見レイア','レイア','#e0b683'),

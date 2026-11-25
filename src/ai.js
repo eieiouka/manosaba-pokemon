@@ -82,6 +82,7 @@ function quickAction(s,side){
    if(m.category==='status'){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
+    if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const rank=c=>c.stages.reduce((sum,x,i)=>sum+x*weights[i],0)+.08*((c.accuracyStage??0)+(c.evasionStage??0)+(c.critRank??0));const gain=rank(d)-rank(a);if(gain>0)v=.35+gain;}
     if(m.protect&&d.status==='toxic'&&a.protectTurn!==s.turn-1&&incoming>0)v=.45+Math.min(.5,(d.toxicCounter??0)*.09);
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
     if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;

@@ -59,7 +59,7 @@ export function damageRange(s,a,d,m){
  const visible=d.revealedAbility?d:{...d,ability:null};
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s);
  const hits=hitLimit(s,m);
- if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&a.stages.every((v,i)=>v===d.stages[i])&&(a.accuracyStage??0)===(d.accuracyStage??0)&&(a.evasionStage??0)===(d.evasionStage??0)&&(a.critRank??0)===(d.critRank??0)||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
@@ -193,8 +193,23 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       a.protectStreak=streak+1;a.protectTurn=n.turn;
       emit(`${name(a,side)}は守りの体勢に入った！`,850,'protect');continue;
     }
-    if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt)){
+    if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages)){
       emit(`${name(d,1-side)}は攻撃から身を守った！`,850);continue;
+    }
+    if(m.swapStages){
+      const labels=['HP','攻撃','防御','特攻','特防','素早さ'];
+      const changes=[];const swap=(key,label,index=null)=>{
+        const av=index===null?(a[key]??0):a[key][index],dv=index===null?(d[key]??0):d[key][index];
+        if(av===dv)return;
+        if(index===null){a[key]=dv;d[key]=av}else{a[key][index]=dv;d[key][index]=av}
+        changes.push({side,stat:label,delta:dv-av},{side:1-side,stat:label,delta:av-dv});
+      };
+      for(let i=1;i<=5;i++)swap('stages',labels[i],i);
+      swap('accuracyStage','命中率');swap('evasionStage','回避率');swap('critRank','急所');
+      if(!changes.length){emit('しかし上手く決まらなかった！');continue}
+      emit(`${name(a,side)}と${name(d,1-side)}の能力変化が入れ替わった！`,950);
+      for(const change of changes)emit(null,450,change.delta>0?'up':'down',null,null,{...change,delta:Math.sign(change.delta)*Math.min(6,Math.abs(change.delta))});
+      continue;
     }
     if(m.recover){
       if(a.hp>=a.maxHp){emit('しかし上手く決まらなかった！');continue}

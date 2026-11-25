@@ -33,7 +33,17 @@ export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random
  const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};
  const steps=[{state:structuredClone(s),delay:950}];
  for(const side of [0,1]){
-  const c=s.teams[side][0];c.seen=true;if(c.ability==='ふゆう'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}は宙に浮いている！`);steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});continue}if(c.ability!=='サイコメイカー'||s.psychicTerrain)continue;
+  const c=s.teams[side][0];c.seen=true;if(c.ability==='せんのう'){
+   c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability},target=s.teams[1-side][0],prefix=side===0?'相手の':'';
+   s.logs.push(`${side===1?'相手の':''}${c.name}のせんのう！`);
+   steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
+   for(const [index,stat] of [[1,'攻撃'],[3,'特攻']]){
+    if(target.stages[index]<=-6)continue;
+    target.stages[index]--;s.logs.push(`${prefix}${target.name}の${stat}が下がった！`);
+    steps.push({state:structuredClone(s),delay:850,sound:'down',ability,statNotice:{side:1-side,stat,delta:-1}});
+   }
+   continue;
+  }if(c.ability==='ふゆう'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}は宙に浮いている！`);steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});continue}if(c.ability!=='サイコメイカー'||s.psychicTerrain)continue;
   c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};s.logs.push(`${side===1?'相手の':''}${c.name}のサイコメイカー！`);
   steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
   s.psychicTerrain=c.item==='terrain'?8:5;s.logs.push('サイコフィールドが広がった！');
@@ -109,6 +119,16 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const onEntry=side=>{
     const c=current(side);c.seen=true;
+    if(c.ability==='せんのう'){
+      const d=current(1-side);if(d.hp<=0)return;
+      c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};
+      emit(null,650);emit(`${name(c,side)}のせんのう！`,950,'activate',ability);
+      for(const [index,stat] of [[1,'攻撃'],[3,'特攻']]){
+       if(d.stages[index]<=-6){emit(`${name(d,1-side)}の${stat}はこれ以上下がらない！`,850,null,ability);continue}
+       d.stages[index]--;emit(`${name(d,1-side)}の${stat}が下がった！`,850,'down',ability,null,{side:1-side,stat,delta:-1});
+      }
+      return;
+    }
     if(c.ability==='ふゆう'){emit(null,650);c.revealedAbility=true;emit(`${name(c,side)}は宙に浮いている！`,950,'activate',{side,name:c.name,ability:c.ability});if(n.gravity>0)emit(`${name(c,side)}は重力の効果で地面に落とされた！`,850);return}
     if(c.ability==='サイコメイカー'){if(n.psychicTerrain>0)return;emit(null,650);c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(`${name(c,side)}のサイコメイカー！`,950,'activate',ability);n.psychicTerrain=c.item==='terrain'?8:5;emit('サイコフィールドが広がった！',850,null,ability);return}
     if(c.ability!=='まじょのあかし'||n.teams[side].filter(x=>x.hp>0).length!==1||c.hp<=0)return;
@@ -186,7 +206,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(m.type==='ground'&&d.ability==='ふゆう'&&!n.gravity){d.revealedAbility=true;emit(`${name(d,1-side)}のふゆう！`,950,'activate',{side:1-side,name:d.name,ability:d.ability})}
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
     let hits=0,totalDamage=0;
-    for(let i=0;i<limit&&d.hp>0;i++){
+    for(let i=0;i<limit&&d.hp>0&&a.hp>0;i++){
       if((m.multiHit!=='silver'||i===0)&&rng()*100>=accuracyChance(m,a,d,n)){if(!hits)emit('しかし外れてしまった！');break}
       if(i===0&&m.contact&&d.ability==='げんし'&&rng()<.2){d.revealedAbility=true;emit(`${name(d,1-side)}のげんし！`,950,'activate',{side:1-side,name:d.name,ability:d.ability});emit(`${name(d,1-side)}は攻撃をかわした！`);break}
       const critical=rng()<criticalChance(m,a);
@@ -208,6 +228,11 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
         if(critical)emit('急所に当たった！');
       }
       berry(d,1-side);
+      if(m.contact&&d.item==='helmet'&&a.hp>0){
+       const notice=activateItem(d,1-side,'helmet');
+       a.hp=Math.max(0,a.hp-Math.max(1,Math.floor(a.maxHp/6)));
+       emit(`${name(a,side)}はゴツゴツメットでダメージを受けた！`,850,'hit',null,notice);
+      }
     }
     if(!hits)continue;
     if(e>=4)emit('効果はかなり抜群だ！');
@@ -223,10 +248,10 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(d.hp>0&&m.lowerSpA&&d.stages[3]>-6){emit(null,650);d.stages[3]--;emit(`${name(d,1-side)}の特攻が下がった！`,850,'down',null,null,{side:1-side,stat:'特攻',delta:-1})}
     if(d.hp>0&&m.lowerAtkChance&&d.stages[1]>-6&&rng()*100<m.lowerAtkChance){emit(null,650);d.stages[1]--;emit(`${name(d,1-side)}の攻撃が下がった！`,850,'down',null,null,{side:1-side,stat:'攻撃',delta:-1})}
     if(d.hp>0&&m.flinchChance&&side===order[0]&&actions[1-side].kind==='move'&&rng()*100<m.flinchChance){emit(null,650);flinched.add(1-side);}
-    if(m.drain&&totalDamage>0&&a.hp<a.maxHp){emit(null,650);a.hp=Math.min(a.maxHp,a.hp+Math.max(1,Math.floor(totalDamage*m.drain)));emit(`${name(a,side)}はHPを回復した！`,850,'heal')}
-    faint(d,1-side);
-    if(m.struggle){a.hp=Math.max(0,a.hp-Math.max(1,Math.floor(a.maxHp/4)));emit(`${name(a,side)}は反動でHPが減った！`,850);faint(a,side)}
-    if(a.item==='orb'&&!m.struggle){
+    if(m.drain&&totalDamage>0&&a.hp>0&&a.hp<a.maxHp){emit(null,650);a.hp=Math.min(a.maxHp,a.hp+Math.max(1,Math.floor(totalDamage*m.drain)));emit(`${name(a,side)}はHPを回復した！`,850,'heal')}
+    faint(d,1-side);faint(a,side);
+    if(m.struggle&&a.hp>0){a.hp=Math.max(0,a.hp-Math.max(1,Math.floor(a.maxHp/4)));emit(`${name(a,side)}は反動でHPが減った！`,850);faint(a,side)}
+    if(a.item==='orb'&&!m.struggle&&a.hp>0){
       const notice=activateItem(a,side,'orb');
       a.hp=Math.max(0,a.hp-Math.max(1,Math.floor(a.maxHp/10)));
       emit(`${name(a,side)}はいのちのたまでHPが減った！`,850,null,null,notice);

@@ -1,7 +1,7 @@
 // 仮設定。種族値は HP / A / B / C / D / S の順。
 const ppTable={'まじょごろし':10,'マジカルフレイム':10,'ハイパーボイス':10,'あくのはどう':15,'ゴリラパンチ':10,'じゃれつく':10,'じごくづき':15,'マッハパンチ':30,'リーフブレード':15,'つじぎり':15,'かぜのやいば':5,'ふいうち':5,'しっとのまい':20,'サイコカッター':20,'インファイト':5,'ひかきぼう':10,'とんぼがえり':20,'アイアンヘッド':15,'シャドーボール':15,'かげうち':30,'かみくだく':15,'どくづき':20,'ラスターカノン':10,'10まんボルト':15,'だいちのちから':10,'げんわくのこえ':10,'イカサマ':15,'じゅうりょく':5,'ちょうはつ':20,'シルバーバレット':5,'かげぬい':10,'シャドークロー':15,'どくどく':10,'あくび':10,'つきのひかり':5,'しんそく':5,'つるぎのまい':20};
 const nonContactMoves=new Set(['かぜのやいば','シルバーバレット','かげぬい']);
-const move=(name,type,category,power,accuracy=100,extra={})=>({name,type,category,power,accuracy,pp:ppTable[name]??10,contact:category==='physical'&&!nonContactMoves.has(name),...extra});
+const move=(name,type,category,power,accuracy=100,extra={})=>({name,type,category,power,accuracy,pp:Math.floor((ppTable[name]??10)*8/5),contact:category==='physical'&&!nonContactMoves.has(name),...extra});
 export const struggle=move('わるあがき','normal','physical',50,100,{pp:null,struggle:true,description:'使える技がないときだけ使う。最大HPの1/4の反動を受ける。'});
 export const types={normal:'ノーマル',fire:'ほのお',water:'みず',electric:'でんき',grass:'くさ',ice:'こおり',fighting:'かくとう',poison:'どく',ground:'じめん',flying:'ひこう',psychic:'エスパー',bug:'むし',rock:'いわ',ghost:'ゴースト',dragon:'ドラゴン',dark:'あく',steel:'はがね',fairy:'フェアリー'};
 export const colors={normal:'#92999e',fire:'#dd693b',water:'#4189da',electric:'#c6a52c',grass:'#5d9c49',ice:'#60a5b9',fighting:'#b44f42',poison:'#9655ac',ground:'#b99153',flying:'#7d8ac9',psychic:'#cf548c',bug:'#82943c',rock:'#998b52',ghost:'#7462a2',dragon:'#6551c9',dark:'#54475e',steel:'#708897',fairy:'#cb79b0'};

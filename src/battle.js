@@ -68,7 +68,7 @@ export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.h
 export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return !!c.trappedBy&&c.hp>0&&!c.types.includes('ghost')&&other.hp>0&&c.trappedBy===other.id};
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
 export const canSwapStatus=(a,d)=>!!a.status&&(!d.status||a.status==='toxic'&&d.status==='poison');
-const canBeneficialSwap=(a,d)=>d.hp*a.maxHp>a.hp*d.maxHp||a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||canSwapStatus(a,d)||['confusion','drowsy','taunted','silenced'].some(key=>(a[key]??0)>(d[key]??0));
+const canBeneficialSwap=(a,d)=>a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||canSwapStatus(a,d)||['confusion','drowsy','taunted','silenced'].some(key=>(a[key]??0)>(d[key]??0));
 export function damageRange(s,a,d,m){
  const visible=d.revealedAbility?d:{...d,ability:null};
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
@@ -307,17 +307,12 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       };
       for(let i=1;i<=5;i++)swap('stages',labels[i],i);
       swap('accuracyStage','命中率');swap('evasionStage','回避率');swap('critRank','急所');
-      let swapped=false;
-      if(d.hp*a.maxHp>a.hp*d.maxHp){
-        const ah=a.hp,dh=d.hp;a.hp=Math.min(a.maxHp,Math.max(1,Math.floor(dh*a.maxHp/d.maxHp)));d.hp=Math.min(d.maxHp,Math.max(1,Math.floor(ah*d.maxHp/a.maxHp)));
-        swapped=true;emit(`${name(a,side)}と${name(d,1-side)}のHP割合が入れ替わった！`,950,'heal');berry(a,side);berry(d,1-side);
-      }
       if(canSwapStatus(a,d)){
         for(const key of ['status','sleepTurns','toxicCounter']){[a[key],d[key]]=[d[key],a[key]]}
-        swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);
+        emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);
       }
       for(const [key,label] of [['confusion','混乱'],['drowsy','ねむけ'],['taunted','ちょうはつ'],['silenced','音技封じ']]){
-        if((a[key]??0)>(d[key]??0)){[a[key],d[key]]=[d[key]??0,a[key]??0];swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の${label}が入れ替わった！`,850)}
+        if((a[key]??0)>(d[key]??0)){[a[key],d[key]]=[d[key]??0,a[key]??0];emit(`${name(a,side)}と${name(d,1-side)}の${label}が入れ替わった！`,850)}
       }
       if(changes.length)emit(`${name(a,side)}と${name(d,1-side)}の能力変化が入れ替わった！`,950);
       for(const change of changes)emit(null,450,change.delta>0?'up':'down',null,null,{...change,delta:Math.sign(change.delta)*Math.min(6,Math.abs(change.delta))});

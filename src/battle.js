@@ -203,7 +203,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(flinched.has(side)){emit(`${name(a,side)}はひるんで動けなかった！`);continue}
     if(a.status==='sleep'){if(a.sleepTurns>0){a.sleepTurns--;emit(`${name(a,side)}はぐうぐう眠っている！`,850,'sleep');continue}a.status=null;emit(`${name(a,side)}は目を覚ました！`)}
     if(a.confusion>0){a.confusion--;if(a.confusion===0)emit(`${name(a,side)}の混乱が解けた！`);else{emit(`${name(a,side)}は混乱している！`);if(rng()<1/3){const selfDamage=damage({...a,item:null},a,{type:'normal',category:'physical',power:40,struggle:true},100);a.hp=Math.max(0,a.hp-selfDamage);emit(`${name(a,side)}はわけもわからず自分を攻撃した！`,850,'hit');faint(a,side);continue}}}
-    const m=act.index===-1?struggle:a.moves[act.index];if(m?.category==='status'&&a.taunted>0){emit(`${name(a,side)}はちょうはつされて${m.name}が出せない！`);continue}if(!m||!canUseMove(a,act.index))continue;
+    const m=act.index===-1?struggle:a.moves[act.index];if(m?.category==='status'&&a.taunted>0){emit(`${name(a,side)}はちょうはつされて、${m.name}が出せない！`);continue}if(!m||!canUseMove(a,act.index))continue;
     if(act.index!==-1){a.pp[act.index]--;if(items[a.item]?.choice)a.lockedMove=act.index;}
     if(act.index!==-1&&!a.revealedMoves.includes(act.index))a.revealedMoves.push(act.index);
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);

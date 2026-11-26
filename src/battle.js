@@ -1,5 +1,5 @@
 import {roster,effectiveness,items,struggle} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,sleepTurns:0,toxicCounter:0,drowsy:0,protectStreak:0,protectTurn:0,subHp:0,confusion:0,taunted:0,trappedBy:null}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,sleepTurns:0,toxicCounter:0,drowsy:0,protectStreak:0,protectTurn:0,clairvoyanceTurn:0,subHp:0,confusion:0,taunted:0,trappedBy:null}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -14,7 +14,7 @@ const matchup=(m,d,s,a=null)=>{
  if(m.type==='ground'&&d.ability==='ふゆう'&&!s?.gravity)return 0;
  return a?.ability==='むこせい'||d.ability==='むこせい'?1:typeMatchup(m,d,s);
 };
-const terrainBlocked=(s,m,d)=>!!s?.psychicTerrain&&!m.protect&&movePriority(m)>0&&grounded(d,s);
+const terrainBlocked=(s,m,d)=>!!s?.psychicTerrain&&!m.protect&&!m.clairvoyance&&movePriority(m)>0&&grounded(d,s);
 export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
  const e=matchup(m,d,s,a);
  if(!e)return 0;
@@ -74,7 +74,7 @@ export function damageRange(s,a,d,m){
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
  const hits=hitLimit(s,m);
  if(m.ignite&&terrainBlocked(s,m,visible))return {label:'無効',min:0,max:0};
- if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.ignite&&a.stages[1]>=6&&(!!d.status||d.types.includes('fire')||d.subHp>0)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.ignite&&a.stages[1]>=6&&(!!d.status||d.types.includes('fire')||d.subHp>0)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.agility&&a.stages[5]>=6||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
@@ -166,7 +166,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const onEntry=side=>{entryAbility(side);psychicSeeds()};
   const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return;const notice=activateItem(c,side,item);if(item==='sitrus')c.item=null;c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal',null,notice)};
   const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp)heal(c,side,Math.floor(c.maxHp/4),'sitrus')};
-  const resetStages=c=>{c.stages=[0,0,0,0,0,0];c.lockedMove=null;c.silenced=0;c.critRank=0;c.accuracyStage=0;c.evasionStage=0;c.confusion=0;c.drowsy=0;c.protectStreak=0;c.protectTurn=0;c.subHp=0;c.toxicCounter=0;c.taunted=0;c.trappedBy=null};
+  const resetStages=c=>{c.stages=[0,0,0,0,0,0];c.lockedMove=null;c.silenced=0;c.critRank=0;c.accuracyStage=0;c.evasionStage=0;c.confusion=0;c.drowsy=0;c.protectStreak=0;c.protectTurn=0;c.clairvoyanceTurn=0;c.subHp=0;c.toxicCounter=0;c.taunted=0;c.trappedBy=null};
   const reserves=side=>n.teams[side].map((c,i)=>i).filter(i=>i!==n.active[side]&&n.teams[side][i].hp>0);
   const pickReserve=side=>{const list=reserves(side);const chosen=(side===1?options.cpuChooseSwitch??options.chooseSwitch:options.chooseSwitch)?.(n,side,list);return list.includes(chosen)?chosen:list[0]};
   const switchTo=(side,index,baton=false)=>{const old=current(side);const pass=baton?{stages:[...old.stages],accuracyStage:old.accuracyStage,evasionStage:old.evasionStage,critRank:old.critRank,subHp:old.subHp}:null;if(current(1-side).trappedBy===old.id)current(1-side).trappedBy=null;resetStages(old);n.active[side]=index;if(pass)Object.assign(current(side),pass);emit(`${name(old,side)}を戻した！ ${name(current(side),side)}を繰り出した！`,850,'switch');onEntry(side)};
@@ -209,6 +209,16 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     if(terrainBlocked(n,m,d)){emit('サイコフィールドに守られた！');continue}
     if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
+    if(m.clairvoyance){
+      a.clairvoyanceTurn=n.turn;emit(`${name(a,side)}は相手の攻撃を見切った！`,850,'protect');
+      if(a.evasionStage<6){a.evasionStage++;emit(`${name(a,side)}の回避率が上がった！`,850,'up',null,null,{side,stat:'回避率',delta:1})}
+      continue;
+    }
+    if(d.clairvoyanceTurn===n.turn&&m.category!=='status'){emit(`${name(d,1-side)}は攻撃をかわした！`,850);continue}
+    if(m.agility){
+      const delta=Math.min(2,6-a.stages[5]);if(!delta){emit('しかし上手く決まらなかった！');continue}
+      a.stages[5]+=delta;emit(`${name(a,side)}の素早さが${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'素早さ',delta});continue;
+    }
     if(m.protect){
       if(actions[1-side].kind==='switch'){a.protectStreak=0;a.protectTurn=0;emit('しかし上手く決まらなかった！');continue}
       const streak=a.protectTurn===n.turn-1?a.protectStreak??0:0;
@@ -377,6 +387,16 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   if(n.psychicTerrain>0&&!--n.psychicTerrain)emit('サイコフィールドが消えた！');
   if(n.gravity>0&&!--n.gravity)emit('重力が元に戻った！');
   for(const side of order){const c=current(side);if(c.hp>0&&c.ability==='かそく'&&c.stages[5]<6){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のかそく！`,950,'activate',ability);c.stages[5]++;emit(`${name(c,side)}の素早さが上がった！`,850,'up',ability,null,{side,stat:'素早さ',delta:1})}}
+  for(const side of order){
+    const c=current(side);if(c.hp<=0||c.ability!=='きまぐれ')continue;
+    const indices=[1,2,3,4,5],labels=['HP','攻撃','防御','特攻','特防','素早さ'];
+    const up=indices.filter(i=>c.stages[i]<6);const u=up.length?up[Math.min(up.length-1,Math.floor(rng()*up.length))]:null;
+    const down=indices.filter(i=>i!==u&&c.stages[i]>-6);const v=down.length?down[Math.min(down.length-1,Math.floor(rng()*down.length))]:null;
+    if(u===null&&v===null)continue;
+    c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のきまぐれ！`,950,'activate',ability);
+    if(u!==null){const delta=Math.min(2,6-c.stages[u]);c.stages[u]+=delta;emit(`${name(c,side)}の${labels[u]}が${delta===2?'ぐーんと':''}上がった！`,850,'up',ability,null,{side,stat:labels[u],delta})}
+    if(v!==null){c.stages[v]--;emit(`${name(c,side)}の${labels[v]}が下がった！`,850,'down',ability,null,{side,stat:labels[v],delta:-1})}
+  }
   const playerRevived=revive(0),cpuRevived=revive(1);
   n.turn++;
   if(!alive(0)||!alive(1)){n.winner=alive(0)?0:1;emit(null,0,n.winner===0?'victory':'defeat')}

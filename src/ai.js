@@ -83,7 +83,7 @@ function quickAction(s,side){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
     if(m.calmMind&&(a.stages[3]<6||a.stages[4]<6)&&best<d.hp&&incoming<a.hp*.65)v=.58+Math.min(.35,best/d.hp);
-    if(m.clairvoyance&&a.evasionStage<6)v=.65+(incoming/a.hp)*.25;
+    if(m.clairvoyance){const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===s.turn-1?a.protectStreak??0:0;v=((a.evasionStage<6?.65:.12)+(incoming/a.hp)*.25)*Math.pow(1/3,streak);}
     if(m.agility&&a.stages[5]<5&&incoming<a.hp*.55)v=.35+(a.stages[5]<2?.2:0);
     if(m.ignite&&!(s.psychicTerrain&&ground(d,s)))v=(!d.status&&!d.types.includes('fire')&&!d.subHp?.65:0)+(a.stages[1]<6?.3:0);
     if(m.substitute&&!a.subHp&&a.hp>a.maxHp/4&&incoming<a.hp*.6)v=.6;

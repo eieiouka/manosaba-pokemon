@@ -83,7 +83,7 @@ function quickAction(s,side){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
     if(m.calmMind&&(a.stages[3]<6||a.stages[4]<6)&&best<d.hp&&incoming<a.hp*.65)v=.58+Math.min(.35,best/d.hp);
-    if(m.clairvoyance){const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===s.turn-1?a.protectStreak??0:0;v=((a.evasionStage<6?.65:.12)+(incoming/a.hp)*.25)*Math.pow(1/3,streak);}
+    if(m.clairvoyance){const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===s.turn-1?a.protectStreak??0:0;const first=(rankedStat(a,5)-rankedStat(d,5))*(s.trickRoom?-1:1)>0;v=((a.evasionStage<6?.4:.06)+(first?.25+(incoming/a.hp)*.25:0))*Math.pow(1/3,streak);}
     if(m.agility&&a.stages[5]<5&&incoming<a.hp*.55)v=.35+(a.stages[5]<2?.2:0);
     if(m.substitute&&!a.subHp&&a.hp>a.maxHp/4&&incoming<a.hp*.6)v=.6;
     if(m.baton&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.12+.16*(Math.max(0,a.stages[1])+Math.max(0,a.stages[3]))+.14*Math.max(0,a.stages[5])+(a.subHp?.2:0);

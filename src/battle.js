@@ -1,5 +1,5 @@
 import {roster,effectiveness,items,struggle} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,sleepTurns:0,toxicCounter:0,drowsy:0,protectStreak:0,protectTurn:0,clairvoyanceTurn:0,subHp:0,confusion:0,taunted:0,trappedBy:null}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+(c.ivs?.[i]??31))*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,sleepTurns:0,toxicCounter:0,drowsy:0,protectStreak:0,protectTurn:0,clairvoyanceTurn:0,subHp:0,confusion:0,taunted:0,trappedBy:null}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -39,7 +39,7 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
 const accuracyChance=(m,a,d,s)=>{if(m.ohko)return a.types.includes('ice')?30:20;const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
 export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3)){
- const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};
+ const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
  const steps=[{state:structuredClone(s),delay:950}];
  for(const side of [0,1]){
   const c=s.teams[side][0];c.seen=true;if(c.ability==='せんのう'){
@@ -77,7 +77,7 @@ export function damageRange(s,a,d,m){
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
  const hits=hitLimit(s,m);
  if(m.ignite&&terrainBlocked(s,m,visible))return {label:'無効',min:0,max:0};
- if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.agility&&a.stages[5]>=6||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.agility&&a.stages[5]>=6||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.parting&&(!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||d.stages[1]<=-6&&d.stages[3]<=-6)||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
@@ -193,7 +193,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const actions=pending?.actions??[action,options.opponentAction??chooseCpu(n)];
   if(!pending&&options.opponentAction){const x=actions[1];if(x.kind==='switch'&&(isTrapped(n,1)||!reserves(1).includes(x.index))||x.kind==='move'&&!canUseMove(current(1),x.index))return []}
   const priority=side=>actions[side].kind==='switch'?6:movePriority(current(side).moves[actions[side].index]);
-  const difference=priority(0)-priority(1)||rankedStat(current(0),5)-rankedStat(current(1),5);
+  const difference=priority(0)-priority(1)||(rankedStat(current(0),5)-rankedStat(current(1),5))*(n.trickRoom&&actions.every(x=>x.kind==='move')?-1:1);
   const order=pending?.order??(difference>0?[0,1]:difference<0?[1,0]:rng()<.5?[0,1]:[1,0]);
   const flinched=new Set(pending?.flinched??[]);
   for(let pos=pending?.next??0;pos<order.length;pos++){
@@ -222,7 +222,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       if(a.evasionStage<6){a.evasionStage++;emit(`${name(a,side)}の回避率が上がった！`,850,'up',null,null,{side,stat:'回避率',delta:1})}
       continue;
     }
-    if(d.clairvoyanceTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite)){emit(`${name(d,1-side)}は相手の技をかわした！`,850);continue}
+    if(d.clairvoyanceTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite||m.parting)){emit(`${name(d,1-side)}は相手の技をかわした！`,850);continue}
     if(m.agility){
       const delta=Math.min(2,6-a.stages[5]);if(!delta){emit('しかし上手く決まらなかった！');continue}
       a.stages[5]+=delta;emit(`${name(a,side)}の素早さが${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'素早さ',delta});continue;
@@ -234,7 +234,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       a.protectStreak=streak+1;a.protectTurn=n.turn;
       emit(`${name(a,side)}は守りの体勢に入った！`,850,'protect');continue;
     }
-    if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite)){
+    if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite||m.parting)){
       emit(`${name(d,1-side)}は攻撃から身を守った！`,850);continue;
     }
     if(m.substitute){
@@ -248,7 +248,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       else{n.pendingSwitch={reason:'baton',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
       continue;
     }
-    if(d.subHp&&(m.toxic||m.yawn||m.sleep||m.confuse)){emit('身代わりに防がれた！');continue}
+    if(d.subHp&&!m.soundMove&&(m.toxic||m.yawn||m.sleep||m.confuse||m.parting)){emit('身代わりに防がれた！');continue}
     if(m.calmMind){
       if(a.stages[3]>=6&&a.stages[4]>=6){emit('しかし上手く決まらなかった！');continue}
       for(const [index,stat] of [[3,'特攻'],[4,'特防']])if(a.stages[index]<6){a.stages[index]++;emit(`${name(a,side)}の${stat}が上がった！`,850,'up',null,null,{side,stat,delta:1})}
@@ -268,10 +268,19 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       if(d.status||d.drowsy>0){emit('しかし上手く決まらなかった！');continue}
       d.drowsy=2;emit(`${name(d,1-side)}は眠気をもよおした！`,850);continue;
     }
+    if(m.trickRoom){if(n.trickRoom){n.trickRoom=0;emit('時空のゆがみが元に戻った！')}else{n.trickRoom=5;emit('時空がゆがみ始めた！')}continue}
+    if(m.parting){
+      if(!reserves(side).length||d.stages[1]<=-6&&d.stages[3]<=-6){emit('しかし上手く決まらなかった！');continue}
+      if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
+      for(const [index,stat] of [[1,'攻撃'],[3,'特攻']])if(d.stages[index]>-6){d.stages[index]--;emit(`${name(d,1-side)}の${stat}が下がった！`,850,'down',null,null,{side:1-side,stat,delta:-1})}
+      if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));
+      else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
+      continue;
+    }
     if(m.gravity){if(n.gravity>0){emit('しかし上手く決まらなかった！');continue}n.gravity=5;emit('重力が強くなった！');continue}
     if(m.sleep||m.confuse||m.taunt){
       if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
-      if(m.sleep||m.confuse){if(m.sleep?!!d.status:d.confusion>0){emit('しかし上手く決まらなかった！');continue}if(m.sleep){d.status='sleep';d.sleepTurns=1+Math.floor(rng()*3);emit(`${name(d,1-side)}は眠ってしまった！`,850,'sleep')}else{d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850)}if(reserves(side).length){if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
+      if(m.sleep||m.confuse){if(m.sleep?!!d.status:d.confusion>0){emit('しかし上手く決まらなかった！');continue}if(m.sleep){d.status='sleep';d.sleepTurns=1+Math.floor(rng()*3);emit(`${name(d,1-side)}は眠ってしまった！`,850,'sleep')}else{d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850)}if(m.pivot&&reserves(side).length){if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
       else{if(d.taunted>0){emit('しかし上手く決まらなかった！');continue}d.taunted=3;emit(`${name(d,1-side)}はちょうはつに乗った！`)}continue;
     }
     if(m.swordsDance){if(a.stages[1]>=6){emit('しかし上手く決まらなかった！');continue}const delta=Math.min(2,6-a.stages[1]);a.stages[1]+=delta;emit(`${name(a,side)}の攻撃が${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'攻撃',delta});continue}
@@ -396,6 +405,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   }
   for(const side of endOrder){const c=current(side);if(c.silenced>0)c.silenced--;if(c.taunted>0&&!--c.taunted)emit(`${name(c,side)}のちょうはつが解けた！`)}
   if(n.psychicTerrain>0&&!--n.psychicTerrain)emit('サイコフィールドが消えた！');
+  if(n.trickRoom>0&&!--n.trickRoom)emit('時空のゆがみが元に戻った！');
   if(n.gravity>0&&!--n.gravity)emit('重力が元に戻った！');
   for(const side of endOrder){
     const c=current(side);if(c.hp<=0)continue;

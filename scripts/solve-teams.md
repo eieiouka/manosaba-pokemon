@@ -13,10 +13,10 @@ node scripts/solve-teams.mjs --quick --opponents 16 --opponent-choices 3 --repea
 ## 上位10構築を深く再検証
 
 ```powershell
-node scripts/solve-teams.mjs --shortlist analysis/screen.json --top 10 --depth 2 --samples 1 --rollout 1 --opponents 8 --opponent-choices 3 --repeats 4 --workers 8 --out analysis/deep.json
+node scripts/solve-teams.mjs --shortlist analysis/screen.json --top 10 --depth 2 --beam 3 --samples 1 --rollout 1 --opponents 8 --opponent-choices 3 --repeats 4 --workers 8 --out analysis/deep.json
 ```
 
-さらに深くする場合は --depth 3。分岐数が急増するため、まず --top 1 --opponents 1 --opponent-choices 1 などで所要時間を測る。--samples は各探索節点の乱数サンプル数。
+さらに深くする場合は --depth 3。既定の --beam 3 は根の全合法手を残し、それ以降は各側の評価上位3手に絞る。--beam 0 で枝刈りなし。--cache 50000 は1バトル内の局面キャッシュ上限で、--cache 0 で無効化する。分岐数が急増するため、まず --top 1 --opponents 1 --opponent-choices 1 などで所要時間を測る。--samples は各探索節点の乱数サンプル数。
 
 ## 保存・再開
 
@@ -29,3 +29,5 @@ node scripts/solve-teams.mjs --shortlist analysis/screen.json --top 10 --depth 2
 - --opponent-choices 60 で各相手の全60選出を対象にできる。--opponents 1716 で全相手構築を対象にできるが、非常に大規模な計算になる。
 - 乱数サンプル、有限深度、評価関数、控え順の同一視、相手選出のサンプリングによる近似であり、厳密な完全解ではない。深読み対戦中は双方の3人選出を既知として計算する。
 - analysis/ は実行時の出力場所。必要な結果だけ保存すること。
+
+高速化前のチェックポイントはエンジンの指紋が異なるため再利用できません。以前と同じ出力名を使用せず、新しい --out を指定してください。

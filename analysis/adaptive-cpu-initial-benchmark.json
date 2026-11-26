@@ -1,0 +1,25 @@
+{
+  "modelGames": 2000000,
+  "gamesPerOpponent": 400,
+  "policy": "adaptive-two-turn",
+  "results": [
+    {
+      "opponent": "current",
+      "wins": 215,
+      "draws": 8,
+      "rate": 0.5475,
+      "medianMs": 5.013195,
+      "p95Ms": 14.959805,
+      "maxMs": 508.063199
+    },
+    {
+      "opponent": "quick",
+      "wins": 289,
+      "draws": 3,
+      "rate": 0.72625,
+      "medianMs": 4.945654,
+      "p95Ms": 10.03623,
+      "maxMs": 311.601116
+    }
+  ]
+}

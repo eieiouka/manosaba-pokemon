@@ -39,8 +39,8 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
 }
 const accuracyChance=(m,a,d,s)=>{if(m.ohko)return a.types.includes('ice')?30:20;const stage=Math.max(-6,Math.min(6,(d.ability==='てんねん'?0:a.accuracyStage??0)-(a.ability==='てんねん'?0:d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
-export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3)){
- const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
+export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3),preview=null){
+ const s={preview,teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
  const steps=[{state:structuredClone(s),delay:950}];
  for(const side of [0,1]){
   const c=s.teams[side][0];c.seen=true;if(c.ability==='しせんゆうどう'){

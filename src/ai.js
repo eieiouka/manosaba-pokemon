@@ -17,7 +17,7 @@ function attackValue(s,a,d,m){
  if(!m||m.category==='status'||m.soundMove&&a.silenced>0||s.psychicTerrain&&priority(m)>0&&ground(d,s))return 0;
  const hits=m.multiHit==='silver'?(a.item==='dice'?6:3.5):hitLimit(s,m);
  let value=damage(a,d,m,93,crit(a,m),rankedStat(a,5)<rankedStat(d,5),s)*hits;
- const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));value*=Math.min(1,m.accuracy/100*(stage>=0?(3+stage)/3:3/(3-stage))*(s.gravity?5/3:1));if(m.contact&&d.ability==='げんし')value*=.8;
+ const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));value*=m.ohko?(a.types.includes('ice')?.3:.2):Math.min(1,m.accuracy/100*(stage>=0?(3+stage)/3:3/(3-stage))*(s.gravity?5/3:1));if(m.contact&&d.ability==='げんし')value*=.8;
  if(m.sucker)value*=.8;
  return value;
 }
@@ -40,7 +40,7 @@ function material(s,side){
  return s.teams[side].reduce((v,c,i)=>{
  if(c.hp<=0)return v;
  const on=i===s.active[side],fraction=c.hp/c.maxHp+(on?(c.subHp??0)/c.maxHp:0);
- return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='poison'?.12:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.07*(c.evasionStage??0)+.035*(c.accuracyStage??0)+.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
+ return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'||c.status==='freeze'?.13:0)-(c.status==='poison'?.12:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.07*(c.evasionStage??0)+.035*(c.accuracyStage??0)+.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
  },0);
 }
 export function evaluate(s){

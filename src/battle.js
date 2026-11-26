@@ -22,7 +22,7 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
  if(m.ohko)return Math.max(d.hp,d.subHp??0);
  const i=m.category==='physical'?1:3;
  const attacker=m.foulPlay?{...d,item:a.item,ability:a.ability}:a;
- const attack=m.puppet?Math.max(d.stats[1],d.stats[3]):rankedStat(attacker,i,(d.ability==='てんねん'&&!m.foulPlay)||(a.ability==='てんねん'&&m.foulPlay)||critical&&(attacker.stages?.[i]??0)<0);
+ const attack=m.puppet?Math.max(...[1,3].map(k=>rankedStat({...d,item:a.item,ability:a.ability},k,critical&&(d.stages?.[k]??0)<0))):rankedStat(attacker,i,(d.ability==='てんねん'&&!m.foulPlay)||(a.ability==='てんねん'&&m.foulPlay)||critical&&(attacker.stages?.[i]??0)<0);
  const defense=rankedStat(d,i+1,a.ability==='てんねん'||critical&&(d.stages?.[i+1]??0)>0);
  const basePower=m.storedPower?20+20*(a.stages.slice(1).reduce((sum,v)=>sum+Math.max(0,v),0)+Math.max(0,a.accuracyStage??0)+Math.max(0,a.evasionStage??0)):m.power;
  const boostedPower=m.liquidControl&&d.status?basePower*2:basePower;

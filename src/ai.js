@@ -16,7 +16,7 @@ export function legalActions(s,side){
 function attackValue(s,a,d,m){
  if(!m||m.category==='status'||m.soundMove&&a.silenced>0||s.psychicTerrain&&priority(m)>0&&ground(d,s))return 0;
  const hits=m.multiHit==='silver'?(a.item==='dice'?6:3.5):hitLimit(s,m);
- let value=damage(a,d,m,93,crit(a,m),rankedStat(a,5)<rankedStat(d,5),s)*hits;
+ let value=damage(a,d,m,93,crit(a,m),(rankedStat(a,5)-rankedStat(d,5))*(s.trickRoom?-1:1)<0,s)*hits;
  const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));value*=m.ohko?(a.types.includes('ice')?.3:.2):Math.min(1,m.accuracy/100*(stage>=0?(3+stage)/3:3/(3-stage))*(s.gravity?5/3:1));if(m.contact&&d.ability==='げんし')value*=.8;
  if(m.sucker)value*=.8;
  return value;
@@ -92,6 +92,9 @@ function quickAction(s,side){
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
     if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;
     if(m.yawn&&!d.status&&!d.drowsy)v=.45;
+    if(m.sleep&&!d.status&&!(m.soundMove&&a.silenced>0))v=.75;
+    if(m.trickRoom&&!s.trickRoom&&rankedStat(a,5)<rankedStat(d,5))v=.45;
+    if(m.parting&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0)&&!(m.soundMove&&a.silenced>0)&&(d.stages[1]>-6||d.stages[3]>-6))v=.5;
     if(m.gravity&&!s.gravity&&s.psychicTerrain>2&&s.teams[side].some(c=>c.id==='hanna'&&c.hp>0))v=.55;
     if(m.confuse&&!d.confusion&&!(m.soundMove&&a.silenced>0)&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.55*Math.min(1,m.accuracy/100*(s.gravity?5/3:1));
     if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.calmMind||t.gravity))v=.35;
@@ -206,7 +209,7 @@ function initiative(s,side){
   return att.moves.map((m,i)=>({m,value:canUseMove(att,i)?attackValue(s,att,def,m):0})).filter(x=>x.value>0);
  }
  const ours=options(a,d),theirs=options(d,a);
- const speed=rankedStat(a,5)-rankedStat(d,5);
+ const speed=(rankedStat(a,5)-rankedStat(d,5))*(s.trickRoom?-1:1);
  const before=(m,n)=>priority(m)>priority(n)||priority(m)===priority(n)&&speed>0;
  const own=Math.max(0,...ours.map(({m,value})=>{
   const danger=Math.max(0,...theirs.filter(x=>!before(m,x.m)).map(x=>x.value))/a.hp;

@@ -377,7 +377,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const endSpeed=rankedStat(current(0),5)-rankedStat(current(1),5);
   const endOrder=endSpeed>0?[0,1]:endSpeed<0?[1,0]:rng()<.5?[0,1]:[1,0];
   if(alive(0)&&alive(1)){
-    for(const side of endOrder){const c=current(side);if(c.item==='leftovers')heal(c,side,Math.floor(c.maxHp/16),'leftovers')}
+    for(const side of endOrder){const c=current(side);if(c.item==='leftovers'||c.item==='blackSludge'&&c.types.includes('poison'))heal(c,side,Math.floor(c.maxHp/16),c.item);else if(c.item==='blackSludge'&&c.hp>0){const notice=activateItem(c,side,'blackSludge');c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/8)));emit(`${name(c,side)}はくろいヘドロでダメージを受けた！`,850,'poison',null,notice);faint(c,side)}}
   }
   for(const side of endOrder){const c=current(side);if(c.hp>0&&c.status==='burn'){c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/16)));emit(`${name(c,side)}はやけどのダメージを受けた！`,850,'burn');faint(c,side)}}
   for(const side of endOrder){

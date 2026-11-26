@@ -31,10 +31,15 @@ function StageMarks({stage=0}){
  if(!count)return <span className="stage-neutral" aria-label="変化なし">－</span>;
  return <span className={'stage-marks '+(stage>0?'stage-up':'stage-down')} aria-label={`${stage>0?'上昇':'下降'}${count}段階`}>{Array.from({length:count},(_,i)=><span key={i}>{stage>0?'▲':'▼'}</span>)}</span>
 }
-function statRange(base,index){
+function stageAdjusted(value,index,stage=0){
+ if(index===0)return value;
+ stage=Math.max(-6,Math.min(6,stage));
+ return Math.max(1,Math.floor(value*(stage>=0?2+stage:2)/(stage>=0?2:2-stage)));
+}
+function statRange(base,index,stage=0){
  const min=index===0?base+60:Math.floor((base+5)*9/10);
  const max=index===0?base+107:Math.floor((base+52)*11/10);
- return <>{min}<span style={{color:"#fff"}}>～</span>{max}</>;
+ return <>{stageAdjusted(min,index,stage)}<span style={{color:"#fff"}}>～</span>{stageAdjusted(max,index,stage)}</>;
 }
 function ItemLabel({item,onInspect}){
  const hold=useRef(null),pressed=useRef(false),origin=useRef(null);
@@ -68,7 +73,7 @@ function InfoModal({character,move:initialMove,item,onClose,inBattle,opponent=fa
  <div className="info-heading"><h2>{item?item.name:move?move.name:character?character.name:'How to play'}</h2><button ref={closeRef} className="ghost" onClick={detailMove?()=>setDetailMove(null):onClose}>{detailMove?"戻る":"閉じる"}</button></div>
  {item?<><h3>持ち物の効果</h3><p>{item.description}</p></>:move?<><div className="type-list"><Type type={move.type}/><span>{move.category==='physical'?'物理':move.category==='status'?'変化':'特殊'}</span></div><dl className="stats-list move-stats"><div><dt>威力</dt><dd>{move.power||'－'}</dd></div><div><dt>命中</dt><dd>{move.category==='status'&&!move.sleep&&!move.taunt&&!move.confuse&&!move.toxic&&!move.ignite?'－':move.accuracy??'－'}</dd></div><div><dt>PP</dt><dd>{move.pp??'－'}</dd></div></dl><h3>技の効果</h3><p>{(move.priority??(move.name==='かげうち'?1:0))>0&&!/^優先度\+\d/.test(move.description??'')?`優先度+${move.priority??1}。`:''}{move.description??(move.name==='かげうち'?'相手より先に攻撃する。':move.name==='サイコカッター'?'急所に当たりやすい攻撃。':'相手に'+(move.category==='physical'?'物理':'特殊')+'ダメージを与える。')}</p></>:character?<><div className="info-character"><Portrait c={character}/><div className="info-character-meta"><div className="type-list">{character.types.map(t=><Type key={t} type={t}/>)}</div>{inBattle&&<span className={"held-item"+(opponent&&!character.revealedItem?" empty":!character.item?" spent":"")}>{opponent&&!character.revealedItem?"？？？":items[opponent?character.revealedItem:(character.item??character.initialItem??roster.find(c=>c.id===character.id)?.item)]?.name??"持ち物なし"}</span>}</div><div className="ability-info-button"><small>特性</small><strong>{opponent&&!character.revealedAbility?"？？？":character.ability??"なし"}</strong></div></div><div className="ability-description"><p>{opponent&&!character.revealedAbility?"？？？":character.abilityDescription??"特性の効果はありません。"}</p></div><div className="character-moves" aria-label="技一覧">{Array.from({length:4},(_,i)=>{const m=opponent?character.moves[character.revealedMoves?.[i]]:character.moves[i];return <button type="button" key={i} className="character-move" disabled={!m} onClick={()=>m&&setDetailMove(m)}>{m?<><Type type={m.type}/><strong>{m.name}</strong></>:<strong>？？？</strong>}</button>})}</div>
  <div className="stat-tabs" role="group" aria-label="能力表示">{[['base','種族値'],['actual','実数値'],['stage','能力変化']].map(([id,label])=><button key={id} type="button" aria-pressed={statTab===id} className={statTab===id?'active':''} onClick={()=>setStatTab(id)}>{label}</button>)}</div>
- <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{(statTab==='stage'?stageLabels:statLabels).map((label,i)=><div key={label}><dt>{label}</dt><dd style={statTab==='actual'?{color:'#f48bbd',...(opponent?{whiteSpace:'nowrap'}:{})}:undefined}>{statTab==='base'?character.base[i]:statTab==='actual'?(opponent?statRange(character.base[i],i):(character.stats??makeTeam([character.id])[0].stats)[i]):<StageMarks stage={stageValues(character)[i]??0}/>}</dd></div>)}</dl></>:<>
+ <dl className={'stats-list '+(statTab==='stage'?'stage-list':'')}>{(statTab==='stage'?stageLabels:statLabels).map((label,i)=><div key={label}><dt>{label}</dt><dd style={statTab==='actual'?{color:'#f48bbd',...(opponent?{whiteSpace:'nowrap'}:{})}:undefined}>{statTab==='base'?character.base[i]:statTab==='actual'?(opponent?statRange(character.base[i],i,character.stages?.[i]??0):stageAdjusted((character.stats??makeTeam([character.id])[0].stats)[i],i,character.stages?.[i]??0)):<StageMarks stage={stageValues(character)[i]??0}/>}</dd></div>)}</dl></>:<>
  {inBattle?<><h3>毎ターンの行動</h3><p>技を選ぶか、控えの魔法少女に交代します。基本的に素早さの高い側から行動しますが、先制技や交代は優先されます。</p>
  <h3>勝利条件</h3><p>魔法少女のHPが0になると倒れ、控えと交代します。相手の3人を全員倒すと勝利です。</p><h3>技の確認</h3><p>技ボタンを長押しすると、威力・命中・効果を確認できます。</p></>:<><h3>選出</h3><p>6人の魔法少女から、バトルに参加させる3人を選びます。1人目に選んだ魔法少女が最初に場に出ます。</p></>}
  {!inBattle&&<><h3>持ち物の確認</h3><p>持ち物名を長押しすると、効果を確認できます。</p></>}<h3>ステータスの確認</h3><p>{inBattle?'立ち絵を長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。':'キャラの選出カードを長押しすると、魔法少女の種族値・実数値・能力変化を確認できます。'}</p>

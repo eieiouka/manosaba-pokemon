@@ -74,7 +74,7 @@ export function damageRange(s,a,d,m){
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
  const hits=hitLimit(s,m);
  if(m.ignite&&terrainBlocked(s,m,visible))return {label:'無効',min:0,max:0};
- if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.ignite&&a.stages[3]>=6&&(!!d.status||d.types.includes('fire')||d.subHp>0)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.ignite&&a.stages[1]>=6&&(!!d.status||d.types.includes('fire')||d.subHp>0)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
@@ -223,7 +223,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
       let changed=false;
       if(!d.status&&!d.types.includes('fire')&&!d.subHp){d.status='burn';d.drowsy=0;emit(`${name(d,1-side)}はやけどを負った！`,850,'burn');changed=true}
-      if(a.stages[3]<6){a.stages[3]++;emit(`${name(a,side)}の特攻が上がった！`,850,'up',null,null,{side,stat:'特攻',delta:1});changed=true}
+      if(a.stages[1]<6){a.stages[1]++;emit(`${name(a,side)}の攻撃が上がった！`,850,'up',null,null,{side,stat:'攻撃',delta:1});changed=true}
       if(!changed)emit('しかし上手く決まらなかった！');continue;
     }
     if(m.substitute){
@@ -290,6 +290,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       const roll=85+Math.min(15,Math.floor(rng()*16));
       const dealt=damage(a,d,m,roll,critical,side===order[1]&&actions[1-side].kind==='move',n);
       if(d.subHp&&!m.soundMove){hits++;d.subHp=Math.max(0,d.subHp-dealt);emit(d.subHp?'身代わりが攻撃を受けた！':'身代わりが消えた！',850,attackSound(m));continue}
+      if(d.subHp&&m.soundMove&&bodyHits===0)emit('音の技は身代わりをすり抜けた！',850);
       bodyHits++;
       const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
       totalDamage+=sash?d.hp-1:Math.min(d.hp,dealt);

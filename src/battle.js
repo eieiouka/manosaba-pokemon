@@ -223,7 +223,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       a.stages[5]+=delta;emit(`${name(a,side)}の素早さが${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'素早さ',delta});continue;
     }
     if(m.protect){
-      if(actions[1-side].kind==='switch'){a.protectStreak=0;a.protectTurn=0;emit('しかし上手く決まらなかった！');continue}
+      if(actions[1-side].kind==='switch'||pos>0){a.protectStreak=0;a.protectTurn=0;emit('しかし上手く決まらなかった！');continue}
       const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===n.turn-1?a.protectStreak??0:0;
       if(streak&&rng()>=Math.pow(1/3,streak)){a.protectStreak=0;emit('しかし上手く決まらなかった！');continue}
       a.protectStreak=streak+1;a.protectTurn=n.turn;

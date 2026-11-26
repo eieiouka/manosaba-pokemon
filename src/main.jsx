@@ -6,6 +6,11 @@ import {start,startSequence,resolveSequence,makeTeam,canUseMove,damageRange,isTr
 import './style.css';
 import {chooseCpuTeam,chooseReserve} from './ai.js';
 import {unlockAttackAudio,playAttackSound} from './sounds.js';
+function randomSix(){
+ const pool=[...roster];
+ for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+ return pool.slice(0,6);
+}
 function Type({type}){return <span className="type" style={{background:colors[type]}}>{types[type]}</span>}
 function Portrait({c,fainted=false,onInspect}){
  const [loadedId,setLoadedId]=useState(null);
@@ -122,8 +127,9 @@ function App(){
  const closeInfo=useCallback(()=>setInfo(null),[]);
  const inspect=useCallback((c,opponent=false)=>setInfo({character:c,opponent}),[]);
  useLayoutEffect(()=>{const resize=()=>setGameScale(Math.min(1,window.innerWidth/920,window.innerHeight/640));resize();window.addEventListener('resize',resize);return()=>window.removeEventListener('resize',resize)},[]);
+ const [parties,setParties]=useState(()=>[randomSix(),randomSix()]);
  const [selected,setSelected]=useState([]),[battle,setBattle]=useState(null),[tab,setTab]=useState('move');
- const expireSelection=useCallback(()=>setBattle(b=>b??start(roster.slice(0,3).map(c=>c.id))),[]);
+ const expireSelection=useCallback(()=>setBattle(b=>b??startSequence(parties[0].slice(0,3).map(c=>c.id),chooseCpuTeam(Math.random,parties[1].map(c=>c.id)),parties.map(p=>p.map(c=>c.id))).at(-1).state),[parties]);
  const toggle=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):s.length<3?[...s,id]:s);
  const [busy,setBusy]=useState(false);
  const [abilityNotice,setAbilityNotice]=useState(null);
@@ -151,15 +157,15 @@ function App(){
   };
   play(0);
  };
- const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const steps=startSequence(selected,chooseCpuTeam());busyRef.current=true;setBusy(true);const play=i=>{if(i>=steps.length){setAbilityNotice(null);setItemNotice(null);setStatNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);setItemNotice(step.itemNotice??null);setStatNotice(step.statNotice??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
- const reset=()=>{setBattle(null);setSelected([]);setTab('move')};
+ const beginBattle=()=>{if(battle||busyRef.current)return;unlockAttackAudio();const steps=startSequence(selected,chooseCpuTeam(Math.random,parties[1].map(c=>c.id)),parties.map(p=>p.map(c=>c.id)));busyRef.current=true;setBusy(true);const play=i=>{if(i>=steps.length){setAbilityNotice(null);setItemNotice(null);setStatNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);setItemNotice(step.itemNotice??null);setStatNotice(step.statNotice??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
+ const reset=()=>{setParties([randomSix(),randomSix()]);setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  const trapped=!!battle&&!battle.pendingSwitch&&isTrapped(battle,0);
  return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA POKEMON</div><h1>まのさばポケモン</h1></div><button className="badge help-button" onClick={()=>setInfo({})}>How to play</button></header>
  {!battle?<><SelectionTimer onExpire={expireSelection}/><div className="preview-top">
- <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{roster.map(c=><div className="mini" key={c.id}><Portrait c={c} onInspect={c=>inspect(c,true)}/><span>{c.short}</span></div>)}</div></section></div>
+ <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{parties[1].map(c=><div className="mini" key={c.id}><Portrait c={c} onInspect={c=>inspect(c,true)}/><span>{c.short}</span></div>)}</div></section></div>
  
- <div className="cards">{roster.map(c=><SelectionCard key={c.id} c={c} index={selected.indexOf(c.id)} full={selected.length===3} onSelect={toggle} onInspect={inspect} onItem={item=>setInfo({item})}/>)}</div>
+ <div className="cards">{parties[0].map(c=><SelectionCard key={c.id} c={c} index={selected.indexOf(c.id)} full={selected.length===3} onSelect={toggle} onInspect={inspect} onItem={item=>setInfo({item})}/>)}</div>
  <div className="selection-bar" style={{justifyContent:'flex-end'}}><button className="primary" disabled={selected.length!==3} onClick={beginBattle}>対戦開始</button></div>
  </>:<><div className={"arena"+(battle.psychicTerrain>0?" psychic-field":"")} style={{marginTop:10}}>{(battle.psychicTerrain>0||battle.gravity>0||battle.trickRoom>0)&&<div className="field-indicators">{battle.psychicTerrain>0&&<span className="field-psychic">サイコフィールド <strong>{battle.psychicTerrain}</strong>ターン</span>}{battle.trickRoom>0&&<span className="field-gravity">トリックルーム <strong>{battle.trickRoom}</strong>ターン</span>}{battle.gravity>0&&<span className="field-gravity">じゅうりょく <strong>{battle.gravity}</strong>ターン</span>}</div>}{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} {c.status==='burn'&&<small style={{color:'#ff9870'}}>やけど</small>}{c.status==='poison'&&<small style={{color:'#c689e9'}}> どく</small>}{c.status==='toxic'&&<small style={{color:'#c689e9'}}> もうどく</small>}{c.drowsy>0&&<small style={{color:'#c9b5fb'}}> ねむけ</small>}{c.status==='freeze'&&<small style={{color:'#9ed9ef'}}> こおり</small>}{c.status==='sleep'&&<small style={{color:'#c9b5fb'}}> ねむり</small>}{c.confusion>0&&<small style={{color:'#f9df69'}}> 混乱</small>}{c.encoreTurns>0&&<small style={{color:'#f9df69'}}> アンコール {c.encoreTurns}T</small>}{c.taunted>0&&<small style={{color:'#f9df69'}}> 挑発 {c.taunted}T</small>}{c.subHp>0&&<small style={{color:'#a8dfc0'}}> 身代わり</small>}</h2><div className="fighter-meta"><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><div className="hp" key={c.id}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div></div><Portrait c={c.subHp>0?{...c,id:'substitute'}:c} fainted={!!c.fainted} onInspect={()=>inspect(c,side===1)}/>{abilityNotice?.side===side&&<div className="ability-notice" role="status"><small>{c.name}の特性</small><strong>{abilityNotice.ability}</strong></div>}{itemNotice?.side===side&&<div className="ability-notice item-notice" role="status"><small>{c.name}の持ち物</small><strong>{itemNotice.item}</strong></div>}{statNotice?.side===side&&<div className={'stat-notice '+(statNotice.delta>0?'stage-up':'stage-down')} role="status"><span>{statNotice.stat}</span><span className="stat-notice-arrows">{(statNotice.delta>0?'▲':'▼').repeat(Math.abs(statNotice.delta))}</span></div>}</div>})}</div>
  <div className="log" aria-live="polite">{battle.logs.at(-1)}</div>

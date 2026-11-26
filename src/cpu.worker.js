@@ -1,2 +1,2 @@
-import {liveCpuAction} from './ai.js';
-self.onmessage=({data})=>{try{self.postMessage(liveCpuAction(data,{budget:2600})??undefined)}catch{self.postMessage(undefined)}};
+import {fastLearnedCpu} from './fast-learned-cpu.js';
+self.onmessage=({data})=>{try{self.postMessage(fastLearnedCpu(data,{budget:45,maxRounds:6})??undefined)}catch{self.postMessage(undefined)}};

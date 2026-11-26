@@ -39,7 +39,7 @@ export function transition(s,a,b,rng){
 function material(s,side){
  return s.teams[side].reduce((v,c,i)=>{
  if(c.hp<=0)return v;
- const on=i===s.active[side],fraction=c.hp/c.maxHp;
+ const on=i===s.active[side],fraction=c.hp/c.maxHp+(on?(c.subHp??0)/c.maxHp:0);
  return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='poison'?.12:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
  },0);
 }
@@ -83,6 +83,10 @@ function quickAction(s,side){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
     if(m.calmMind&&(a.stages[3]<6||a.stages[4]<6)&&best<d.hp&&incoming<a.hp*.65)v=.58+Math.min(.35,best/d.hp);
+    if(m.ignite&&!(s.psychicTerrain&&ground(d,s)))v=(!d.status&&!d.types.includes('fire')&&!d.subHp?.65:0)+(a.stages[1]<6?.3:0);
+    if(m.substitute&&!a.subHp&&a.hp>a.maxHp/4&&incoming<a.hp*.6)v=.6;
+    if(m.baton&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.12+.16*Math.max(0,a.stages[1])+.14*Math.max(0,a.stages[5])+(a.subHp?.2:0);
+    if(m.protect&&a.ability==='かそく'&&a.stages[5]<6&&a.protectTurn!==s.turn-1)v=.55;
     if(m.protect&&d.status==='toxic'&&a.protectTurn!==s.turn-1&&incoming>0)v=.45+Math.min(.5,(d.toxicCounter??0)*.09);
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
     if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;

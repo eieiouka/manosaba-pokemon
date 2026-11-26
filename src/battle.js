@@ -43,7 +43,11 @@ export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random
  const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
  const steps=[{state:structuredClone(s),delay:950}];
  for(const side of [0,1]){
-  const c=s.teams[side][0];c.seen=true;if(c.ability==='せんのう'){
+  const c=s.teams[side][0];c.seen=true;if(c.ability==='しせんゆうどう'){
+   c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};
+   s.logs.push(`${side===1?'相手の':''}${c.name}のしせんゆうどう！`);steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
+   s.logs.push('相手は交代できなくなった！');steps.push({state:structuredClone(s),delay:850,ability});continue;
+  }if(c.ability==='せんのう'){
    c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability},target=s.teams[1-side][0],prefix=side===0?'相手の':'';
    s.logs.push(`${side===1?'相手の':''}${c.name}のせんのう！`);
    steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
@@ -69,7 +73,7 @@ export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random
 }
 export function start(ids){return startSequence(ids).at(-1).state}
 export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:m.multiHit==='silver'?6:1;
-export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return !!c.trappedBy&&c.hp>0&&!c.types.includes('ghost')&&other.hp>0&&c.trappedBy===other.id};
+export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return c.hp>0&&other.hp>0&&(other.ability==='しせんゆうどう'||!!c.trappedBy&&!c.types.includes('ghost')&&c.trappedBy===other.id)};
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
 export const canSwapStatus=(a,d)=>!!a.status&&(!d.status||a.status==='toxic'&&d.status==='poison');
 const canBeneficialSwap=(a,d)=>a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||canSwapStatus(a,d)||['confusion','drowsy','taunted','silenced'].some(key=>(a[key]??0)>(d[key]??0));
@@ -139,6 +143,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const entryAbility=side=>{
     const c=current(side);c.seen=true;
+    if(c.ability==='しせんゆうどう'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のしせんゆうどう！`,950,'activate',ability);emit(`${name(current(1-side),1-side)}は交代できなくなった！`,850,null,ability);return}
     if(c.ability==='せんのう'){
       const d=current(1-side);if(d.hp<=0)return;
       c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};

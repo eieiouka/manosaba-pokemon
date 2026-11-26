@@ -303,7 +303,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       const roll=85+Math.min(15,Math.floor(rng()*16));
       const dealt=damage(a,d,m,roll,critical,side===order[1]&&actions[1-side].kind==='move',n);
       if(d.subHp&&!m.soundMove){hits++;d.subHp=Math.max(0,d.subHp-dealt);emit(d.subHp?'身代わりが攻撃を受けた！':'身代わりが消えた！',850,attackSound(m));continue}
-      if(d.subHp&&m.soundMove&&bodyHits===0)emit('音の技は身代わりをすり抜けた！',850);
+      if(d.subHp&&m.soundMove&&bodyHits===0)emit('音技は身代わりをすり抜けた！',850);
       bodyHits++;
       const sash=d.item==='sash'&&d.hp===d.maxHp&&dealt>=d.hp;
       totalDamage+=sash?d.hp-1:Math.min(d.hp,dealt);

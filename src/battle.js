@@ -8,7 +8,7 @@ export function rankedStat(c,index,ignore=false){
 }
 const roundHalfDown=(value,numerator,denominator)=>Math.floor((value*numerator+Math.floor((denominator-1)/2))/denominator);
 const grounded=(c,s)=>!!s?.gravity||(!c.types.includes('flying')&&c.ability!=='ふゆう');
-const typeMatchup=(m,d,s)=>m.struggle?1:m.freezeDry?d.types.reduce((v,t)=>v*(t==='water'?2:effectiveness(m.type,[t])),1):m.type==='ground'&&s?.gravity?effectiveness(m.type,d.types.filter(t=>t!=='flying')):effectiveness(m.type,d.types);
+const typeMatchup=(m,d,s)=>m.struggle?1:m.liquidControl?d.types.reduce((v,t)=>v*(t==='water'||t==='grass'?2:effectiveness(m.type,[t])),1):m.freezeDry?d.types.reduce((v,t)=>v*(t==='water'?2:effectiveness(m.type,[t])),1):m.type==='ground'&&s?.gravity?effectiveness(m.type,d.types.filter(t=>t!=='flying')):effectiveness(m.type,d.types);
 const matchup=(m,d,s,a=null)=>{
  if(m.struggle)return 1;
  if(m.ohko)return d.types.includes('ice')?0:1;
@@ -22,10 +22,11 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
  if(m.ohko)return Math.max(d.hp,d.subHp??0);
  const i=m.category==='physical'?1:3;
  const attacker=m.foulPlay?{...d,item:a.item,ability:a.ability}:a;
- const attack=m.puppet?Math.max(d.stats[1],d.stats[3]):rankedStat(attacker,i,critical&&(attacker.stages?.[i]??0)<0);
- const defense=rankedStat(d,i+1,critical&&(d.stages?.[i+1]??0)>0);
+ const attack=m.puppet?Math.max(d.stats[1],d.stats[3]):rankedStat(attacker,i,(d.ability==='てんねん'&&!m.foulPlay)||(a.ability==='てんねん'&&m.foulPlay)||critical&&(attacker.stages?.[i]??0)<0);
+ const defense=rankedStat(d,i+1,a.ability==='てんねん'||critical&&(d.stages?.[i+1]??0)>0);
  const basePower=m.storedPower?20+20*(a.stages.slice(1).reduce((sum,v)=>sum+Math.max(0,v),0)+Math.max(0,a.accuracyStage??0)+Math.max(0,a.evasionStage??0)):m.power;
- const fieldPower=s?.psychicTerrain&&m.type==='psychic'&&grounded(a,s)?roundHalfDown(basePower,5325,4096):basePower;
+ const boostedPower=m.liquidControl&&d.status?basePower*2:basePower;
+ const fieldPower=s?.psychicTerrain&&m.type==='psychic'&&grounded(a,s)?roundHalfDown(boostedPower,5325,4096):boostedPower;
  const power=a.item==='neverMeltIce'&&m.type==='ice'?roundHalfDown(fieldPower,4915,4096):fieldPower;
  let value=Math.floor(Math.floor(22*power*(m.latePower&&second?2:1)*attack/defense)/50)+2;
  if(critical)value=roundHalfDown(value,3,2);
@@ -36,7 +37,7 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
  if(a.item==='orb')value=roundHalfDown(value,5324,4096);
  return Math.max(1,value);
 }
-const accuracyChance=(m,a,d,s)=>{if(m.ohko)return a.types.includes('ice')?30:20;const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
+const accuracyChance=(m,a,d,s)=>{if(m.ohko)return a.types.includes('ice')?30:20;const stage=Math.max(-6,Math.min(6,(d.ability==='てんねん'?0:a.accuracyStage??0)-(a.ability==='てんねん'?0:d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
 export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3)){
  const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
@@ -294,6 +295,8 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
     if(!limit){emit('しかし上手く決まらなかった！');continue}
     const e=matchup(m,d,n,a);
+    const atkIndex=m.category==='physical'?1:3;
+    for(const [holder,holderSide,affected] of [[a,side,d.stages[atkIndex+1]||(d.evasionStage??0)],[d,1-side,a.stages[atkIndex]||(a.accuracyStage??0)]])if(holder.ability==='てんねん'&&affected&&!holder.revealedAbility){holder.revealedAbility=true;const ability={side:holderSide,name:holder.name,ability:holder.ability};emit(null,650);emit(`${name(holder,holderSide)}のてんねん！`,950,'activate',ability)}
     if(typeMatchup(m,d,n)!==1&&e===1){
       for(const [holder,holderSide] of [[a,side],[d,1-side]])if(holder.ability==='むこせい'&&!holder.revealedAbility){
         holder.revealedAbility=true;const ability={side:holderSide,name:holder.name,ability:holder.ability};

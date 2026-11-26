@@ -11,7 +11,7 @@ permissions:
 jobs:
   parity:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,15 +20,13 @@ jobs:
       - run: node scripts/export-rust-data.mjs && git diff --exit-code rust/data.json
       - run: cargo build --release --manifest-path rust/Cargo.toml
       - run: node scripts/check-rust-parity.mjs 200
-      - run: cp analysis/value-rust-1m.json /tmp/value-rust.json
-      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 2000000 --workers 2 --out /tmp/value-rust.json --eval 2000
-      - run: cp /tmp/value-rust.json /tmp/value-rust-2m.json
-      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 5000000 --workers 2 --out /tmp/value-rust.json --eval 2000
-      - run: cp /tmp/value-rust.json /tmp/value-rust-5m.json
-      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 10000000 --workers 2 --out /tmp/value-rust.json --eval 2000
-      - run: cp /tmp/value-rust.json /tmp/value-rust-10m.json
+      - run: cp analysis/value-rust-10m.json /tmp/value-rust.json
+      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 20000000 --workers 2 --out /tmp/value-rust.json --eval 2000
+      - run: cp /tmp/value-rust.json /tmp/value-rust-20m.json
+      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 30000000 --workers 2 --out /tmp/value-rust.json --eval 2000
+      - run: cp /tmp/value-rust.json /tmp/value-rust-30m.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rust-value-10m
+          name: rust-value-30m
           path: /tmp/value-rust*.json

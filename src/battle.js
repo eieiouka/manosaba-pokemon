@@ -135,7 +135,8 @@ const attackSound=m=>m.sound??attackSounds[m.name]??(m.type==='electric'?'electr
 // Each step contains a complete battle snapshot and a display duration.
 export function resolveSequence(s,action,rng=Math.random,options={}){
   if(s.winner!==null)return [];
-  const n=structuredClone(s),steps=[];
+  // Fast simulation shares immutable roster data; copy every mutable array/record.
+  const n=options.fast?{...s,active:[...s.active],logs:[...s.logs],...(s.pendingSwitch?{pendingSwitch:structuredClone(s.pendingSwitch)}:{}),teams:s.teams.map(t=>t.map(c=>({...c,stages:[...c.stages],pp:[...c.pp],revealedMoves:[...c.revealedMoves]})))}:structuredClone(s),steps=[];
   const alive=side=>n.teams[side].some(c=>c.hp>0);
   const current=side=>n.teams[side][n.active[side]];
   const emit=(message,delay=850,sound=null,ability=null,itemNotice=null,statNotice=null)=>{if(message&&!options.fast)n.logs.push(message);if(options.fast)steps[0]={state:n,delay:0};else steps.push({state:structuredClone(n),delay,sound,ability,itemNotice,statNotice})};

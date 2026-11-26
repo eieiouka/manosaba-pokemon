@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {readFileSync,writeFileSync,appendFileSync,existsSync,renameSync,mkdirSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {roster} from '../src/data.js';
-import {initialState,transition,search,simulateQuick,seededRandom} from '../src/ai.js';
+import {initialState,transition,search,simulateQuick,seededRandom,createSearchContext} from '../src/ai.js';
 
 const ids=roster.map(c=>c.id);
 const combinations=(xs,n,start=0)=>n===0?[[]]:xs.slice(start).flatMap((x,i)=>combinations(xs,n-1,start+i+1).map(t=>[x,...t]));
@@ -19,8 +19,9 @@ const shuffle=(xs,r)=>{const a=[...xs];for(let i=a.length-1;i>0;i--){const j=Mat
 function battle(a,b,o,seed){
  if(o.quick)return simulateQuick(a,b,{seed,maxTurns:o.maxTurns}).winner;
  let state=initialState(a,b),decision=seededRandom(seed^0xdea110c),random=seededRandom(seed^0x9e3779b9);
+ const context=createSearchContext({seed:seed^0xa118,beam:o.beam,cacheEntries:o.cacheEntries});
  for(let t=0;t<o.maxTurns&&state.winner===null;t++){
-  const q=search(state,{depth:o.depth,samples:o.samples,rolloutTurns:o.rollout,iterations:o.iterations,rng:decision});
+  const q=search(state,{depth:o.depth,samples:o.samples,rolloutTurns:o.rollout,iterations:o.iterations,rng:decision,context});
   if(!q.row.length||!q.col.length)break;
   state=transition(state,q.actions[0][draw(q.row,decision)],q.actions[1][draw(q.col,decision)],random);
  }
@@ -44,10 +45,10 @@ if(!isMainThread){
  const val=(name,def)=>{const i=args.indexOf(name);return i<0?def:args[i+1]};
  const num=(name,def,min=1)=>{const v=Number(val(name,def));if(!Number.isSafeInteger(v)||v<min)throw Error('Invalid '+name);return v};
  if(args.includes('--help')){
-  console.log('node scripts/solve-teams.mjs [--quick] [--depth 2] [--samples 1] [--rollout 1] [--repeats 2] [--opponents 16] [--opponent-choices 3] [--workers 8] [--shortlist results.json --top 10] [--out results.json] [--checkpoint checkpoint.jsonl] [--seed 1] [--max-turns 80]');
+  console.log('node scripts/solve-teams.mjs [--quick] [--depth 2] [--beam 3] [--cache 50000] [--samples 1] [--rollout 1] [--repeats 2] [--opponents 16] [--opponent-choices 3] [--workers 8] [--shortlist results.json --top 10] [--out results.json] [--checkpoint checkpoint.jsonl] [--seed 1] [--max-turns 80]');
  }else await main();
  async function main(){
-  const opts={quick:args.includes('--quick'),depth:num('--depth',2),samples:num('--samples',1),rollout:num('--rollout',1,0),repeats:num('--repeats',2),iterations:num('--iterations',64),seed:num('--seed',1,0),maxTurns:num('--max-turns',80)};
+  const opts={quick:args.includes('--quick'),depth:num('--depth',2),beam:num('--beam',3,0),cacheEntries:num('--cache',50000,0),samples:num('--samples',1),rollout:num('--rollout',1,0),repeats:num('--repeats',2),iterations:num('--iterations',64),seed:num('--seed',1,0),maxTurns:num('--max-turns',80)};
   const workers=num('--workers',Math.min(8,availableParallelism())),opponentCount=num('--opponents',16),opponentChoices=num('--opponent-choices',3),top=num('--top',10);
   const out=resolve(val('--out','analysis/teams.json')),checkpoint=resolve(val('--checkpoint',out+'.jsonl'));
   const shortlist=val('--shortlist',null),rng=seededRandom(opts.seed^0xa7415);

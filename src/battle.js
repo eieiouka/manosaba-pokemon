@@ -68,7 +68,7 @@ export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.h
 export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return !!c.trappedBy&&c.hp>0&&!c.types.includes('ghost')&&other.hp>0&&c.trappedBy===other.id};
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
 export const canSwapStatus=(a,d)=>!!a.status&&(!d.status||a.status==='toxic'&&d.status==='poison');
-const canBeneficialSwap=(a,d)=>d.hp*a.maxHp>a.hp*d.maxHp||a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||canSwapStatus(a,d)||(a.confusion??0)>(d.confusion??0)||(a.drowsy??0)>(d.drowsy??0);
+const canBeneficialSwap=(a,d)=>d.hp*a.maxHp>a.hp*d.maxHp||a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||canSwapStatus(a,d)||['confusion','drowsy','taunted','silenced'].some(key=>(a[key]??0)>(d[key]??0));
 export function damageRange(s,a,d,m){
  const visible=d.revealedAbility?d:{...d,ability:null};
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
@@ -316,7 +316,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
         for(const key of ['status','sleepTurns','toxicCounter']){[a[key],d[key]]=[d[key],a[key]]}
         swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);
       }
-      for(const [key,label] of [['confusion','混乱'],['drowsy','ねむけ']]){
+      for(const [key,label] of [['confusion','混乱'],['drowsy','ねむけ'],['taunted','ちょうはつ'],['silenced','音技封じ']]){
         if((a[key]??0)>(d[key]??0)){[a[key],d[key]]=[d[key]??0,a[key]??0];swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の${label}が入れ替わった！`,850)}
       }
       if(changes.length)emit(`${name(a,side)}と${name(d,1-side)}の能力変化が入れ替わった！`,950);

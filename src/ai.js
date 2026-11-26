@@ -91,7 +91,7 @@ function quickAction(s,side){
     if(m.confuse&&!d.confusion&&!(m.soundMove&&a.silenced>0)&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.55*Math.min(1,m.accuracy/100*(s.gravity?5/3:1));
     if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.calmMind||t.gravity))v=.35;
    }else{const dmg=attackValue(s,a,d,m);v=dmg/Math.max(1,d.hp);if(dmg>=d.hp&&priority(m)>0)v+=.7;
-    if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const hp=Math.max(0,d.hp/d.maxHp-a.hp/a.maxHp);const status=(canSwapStatus(a,d)?.35:0)+['confusion','drowsy','taunted','silenced'].reduce((sum,key)=>sum+.12*Math.max(0,(a[key]??0)-(d[key]??0)),0);if(gain+hp+status>0)v+=.15+gain+hp*1.4+status;}
+    if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const status=(canSwapStatus(a,d)?.35:0)+['confusion','drowsy','taunted','silenced'].reduce((sum,key)=>sum+.12*Math.max(0,(a[key]??0)-(d[key]??0)),0);if(gain+status>0)v+=.15+gain+status;}
    }
   }
   if(v>max){max=v;out=x}

@@ -16,8 +16,8 @@ export function legalActions(s,side){
 function attackValue(s,a,d,m){
  if(!m||m.category==='status'||m.soundMove&&a.silenced>0||s.psychicTerrain&&priority(m)>0&&ground(d,s))return 0;
  const hits=m.multiHit==='silver'?(a.item==='dice'?6:3.5):hitLimit(s,m);
- let value=damage(a,d,m,93,crit(a,m),rankedStat(a,5)<rankedStat(d,5),s)*hits;
- const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));value*=Math.min(1,m.accuracy/100*(stage>=0?(3+stage)/3:3/(3-stage))*(s.gravity?5/3:1));if(m.contact&&d.ability==='げんし')value*=.8;
+ let value=damage(a,d,m,93,crit(a,m),(rankedStat(a,5)-rankedStat(d,5))*(s.trickRoom?-1:1)<0,s)*hits;
+ const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));value*=m.ohko?(a.types.includes('ice')?.3:.2):Math.min(1,m.accuracy/100*(stage>=0?(3+stage)/3:3/(3-stage))*(s.gravity?5/3:1));if(m.contact&&d.ability==='げんし')value*=.8;
  if(m.sucker)value*=.8;
  return value;
 }
@@ -40,7 +40,7 @@ function material(s,side){
  return s.teams[side].reduce((v,c,i)=>{
  if(c.hp<=0)return v;
  const on=i===s.active[side],fraction=c.hp/c.maxHp+(on?(c.subHp??0)/c.maxHp:0);
- return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'?.13:0)-(c.status==='poison'?.12:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.07*(c.evasionStage??0)+.035*(c.accuracyStage??0)+.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
+ return v+0.65+fraction+(c.item==='sash'&&c.hp===c.maxHp?.12:0)+(c.ability==='しにもどり'&&!c.revivalUsed?.24:0)-(c.status==='burn'?.10:0)-(c.status==='sleep'||c.status==='freeze'?.13:0)-(c.status==='poison'?.12:0)-(c.status==='toxic'?.13+.035*Math.min(5,c.toxicCounter??0):0)-(on&&c.drowsy>0?.16:0)-(on&&c.confusion>0?.18:0)-(on&&c.taunted>0&&c.moves.some(m=>m.dance||m.swordsDance||m.calmMind||m.confuse||m.gravity)?.09:0)+(on?.07*(c.evasionStage??0)+.035*(c.accuracyStage??0)+.085*(c.stages[1]+c.stages[3])+.035*(c.stages[2]+c.stages[4]+c.stages[5])+.045*(c.critRank??0):0);
  },0);
 }
 export function evaluate(s){
@@ -70,10 +70,10 @@ function terrainValue(s,side){
  }
  return duration*benefit;
 }
-function quickAction(s,side){
+export function rankActions(s,side){
  const a=active(s,side),d=active(s,1-side),actions=legalActions(s,side);
  const best=bestHit(s,a,d),incoming=bestHit(s,d,a);
- let out=actions[0],max=-Infinity;
+ const ranked=[];
  for(const x of actions){
   let v;
   if(x.kind==='switch'){v=reserveValue(s,side,x.index)-reserveValue(s,side,s.active[side])-.35;if(a.drowsy===1)v+=.65;if(best>=d.hp)v-=.8}
@@ -83,15 +83,21 @@ function quickAction(s,side){
     v=-1;
     if((m.dance||m.swordsDance)&&a.stages[1]<4&&best<d.hp&&(incoming<a.hp*.55||(a.item==='sash'&&a.hp===a.maxHp)))v=.7+Math.min(best/d.hp,.4);
     if(m.calmMind&&(a.stages[3]<6||a.stages[4]<6)&&best<d.hp&&incoming<a.hp*.65)v=.58+Math.min(.35,best/d.hp);
-    if(m.clairvoyance){const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===s.turn-1?a.protectStreak??0:0;v=((a.evasionStage<6?.65:.12)+(incoming/a.hp)*.25)*Math.pow(1/3,streak);}
+    if(m.clairvoyance){const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===s.turn-1?a.protectStreak??0:0;const first=(rankedStat(a,5)-rankedStat(d,5))*(s.trickRoom?-1:1)>0;v=((a.evasionStage<6?.4:.06)+(first?.25+(incoming/a.hp)*.25:0))*Math.pow(1/3,streak);}
     if(m.agility&&a.stages[5]<5&&incoming<a.hp*.55)v=.35+(a.stages[5]<2?.2:0);
     if(m.substitute&&!a.subHp&&a.hp>a.maxHp/4&&incoming<a.hp*.6)v=.6;
     if(m.baton&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.12+.16*(Math.max(0,a.stages[1])+Math.max(0,a.stages[3]))+.14*Math.max(0,a.stages[5])+(a.subHp?.2:0);
     if(m.protect&&a.ability==='かそく'&&a.stages[5]<6&&a.protectTurn!==s.turn-1)v=.55;
     if(m.protect&&d.status==='toxic'&&a.protectTurn!==s.turn-1&&incoming>0)v=.45+Math.min(.5,(d.toxicCounter??0)*.09);
+    if(m.amnesia&&a.stages[4]<5&&d.moves.some(m=>m.category==='special')&&incoming<a.hp*.65)v=.5;
+    if(m.rest&&a.hp<a.maxHp*.55)v=.55+(a.item==='chesto'?.5:0)+(a.status?.15:0);
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
     if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;
     if(m.yawn&&!d.status&&!d.drowsy)v=.45;
+    if(m.encore&&d.lastMove!=null&&d.lastMove>=0&&!d.encoreTurns&&d.moves[d.lastMove]?.category==='status'&&d.pp[d.lastMove]>0)v=.9;
+    if(m.sleep&&!d.status&&!(m.soundMove&&a.silenced>0))v=.75;
+    if(m.trickRoom&&!s.trickRoom&&rankedStat(a,5)<rankedStat(d,5))v=.45;
+    if(m.parting&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0)&&!(m.soundMove&&a.silenced>0)&&(d.stages[1]>-6||d.stages[3]>-6))v=.5;
     if(m.gravity&&!s.gravity&&s.psychicTerrain>2&&s.teams[side].some(c=>c.id==='hanna'&&c.hp>0))v=.55;
     if(m.confuse&&!d.confusion&&!(m.soundMove&&a.silenced>0)&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.55*Math.min(1,m.accuracy/100*(s.gravity?5/3:1));
     if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.calmMind||t.gravity))v=.35;
@@ -100,16 +106,17 @@ function quickAction(s,side){
     if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const status=(canSwapStatus(a,d)?.35:0)+['confusion','drowsy','taunted','silenced'].reduce((sum,key)=>sum+.12*Math.max(0,(a[key]??0)-(d[key]??0)),0);if(gain+status>0)v+=.15+gain+status;}
    }
   }
-  if(v>max){max=v;out=x}
+  ranked.push({action:x,score:v});
  }
- return out;
+ return ranked.sort((a,b)=>b.score-a.score);
 }
-function rollout(s,rng,turns){
+export function quickAction(s,side){return rankActions(s,side)[0]?.action}
+function rollout(s,rng,turns,valueFn=evaluate){
  for(let i=0;i<turns&&s.winner===null;i++){
   const a=quickAction(s,0),b=quickAction(s,1);if(!a||!b)break;
   const next=transition(s,a,b,rng);if(next===s)break;s=next;
  }
- return evaluate(s);
+ return valueFn(s);
 }
 // Fictitious play estimates mixed strategies of the simultaneous zero-sum game.
 // No player gets to observe the other's selected action before committing.
@@ -124,17 +131,45 @@ function equilibrium(payoff,iterations=48){
  const value=payoff.reduce((sum,line,i)=>sum+row[i]*line.reduce((v,x,j)=>v+x*col[j],0),0);
  return {row,col,value};
 }
-export function search(s,{depth=1,samples=2,rolloutTurns=1,iterations=48,rng=Math.random,deadline=Infinity}={}){
- const actions=[legalActions(s,0),legalActions(s,1)];
- if(s.winner!==null||!actions[0].length||!actions[1].length)return {actions,value:evaluate(s),row:[],col:[]};
- const seeds=Array.from({length:samples},()=>Math.floor(rng()*4294967296));
+// Offline search context. The chance samples are deterministic per position,
+// allowing transpositions to share results without sharing actual battle RNG.
+export function createSearchContext({seed=1,beam=3,cacheEntries=50000,valueFn=evaluate}={}){
+ return {seed:seed>>>0,beam,cacheEntries,valueFn,cache:new Map(),nodes:0,hits:0};
+}
+const dynamicKeys=['id','hp','maxHp','item','ability','stats','stages','pp','lockedMove','lastMove','encoreTurns','encoreMove','critRank','accuracyStage','evasionStage','status','sleepTurns','toxicCounter','drowsy','protectStreak','protectTurn','clairvoyanceTurn','subHp','confusion','taunted','trappedBy','silenced','revivalUsed','fainted'];
+function positionKey(s){
+ return JSON.stringify([s.turn,s.active,s.winner,s.psychicTerrain,s.gravity,s.trickRoom,s.pendingSwitch??null,s.teams.map(t=>t.map(c=>dynamicKeys.map(k=>c[k])))]);
+}
+function positionSeed(key,seed){
+ let h=(2166136261^seed)>>>0;for(let i=0;i<key.length;i++)h=Math.imul(h^key.charCodeAt(i),16777619);return h>>>0;
+}
+export function search(s,{depth=1,samples=2,rolloutTurns=1,iterations=48,rng=Math.random,deadline=Infinity,context=null,root=true}={}){
+ if(Date.now()>deadline)throw new Error('search deadline');
+ const valueFn=context?.valueFn??evaluate;
+ const useBeam=context&&!root&&context.beam>0;
+ const actions=useBeam?[0,1].map(side=>rankActions(s,side).slice(0,context.beam).map(x=>x.action)):[legalActions(s,0),legalActions(s,1)];
+ if(s.winner!==null||!actions[0].length||!actions[1].length)return {actions,value:valueFn(s),row:[],col:[]};
+ let key,localRng=rng;
+ if(context){
+  context.nodes++;
+  const position=positionKey(s);
+  key=JSON.stringify([depth,samples,rolloutTurns,iterations,root?0:context.beam,position]);
+  if(context.cacheEntries>0&&context.cache.has(key)){context.hits++;return context.cache.get(key)}
+  localRng=seededRandom(positionSeed(key,context.seed));
+ }
+ const seeds=Array.from({length:samples},()=>Math.floor(localRng()*4294967296));
  const payoff=actions[0].map(a=>actions[1].map(b=>seeds.reduce((sum,seed)=>{
   if(Date.now()>deadline)throw new Error('search deadline');
   const random=seededRandom(seed);const next=transition(s,a,b,random);
-  const v=next.winner!==null?evaluate(next):depth>1?search(next,{depth:depth-1,samples,rolloutTurns,iterations,rng:random,deadline}).value:rollout(next,random,rolloutTurns);
+  const v=next.winner!==null?valueFn(next):depth>1?search(next,{depth:depth-1,samples,rolloutTurns,iterations,rng:random,deadline,context,root:false}).value:rollout(next,random,rolloutTurns,valueFn);
   return sum+v;
  },0)/samples));
- return {actions,payoff,...equilibrium(payoff,iterations)};
+ const result={actions,payoff,...equilibrium(payoff,iterations)};
+ if(context&&context.cacheEntries>0){
+  if(context.cache.size>=context.cacheEntries)context.cache.delete(context.cache.keys().next().value);
+  context.cache.set(key,result);
+ }
+ return result;
 }
 function draw(p,rng){let x=rng();for(let i=0;i<p.length;i++){x-=p[i];if(x<=0)return i}return p.length-1}
 export function simulate(a,b,{seed=1,depth=1,samples=2,rolloutTurns=1,iterations=48,maxTurns=80}={}){
@@ -170,10 +205,10 @@ export function rankSelections({candidates=allSelections(),opponents=allSelectio
 
 // CPU selection is committed independently of the player's hidden selection.
 // Diverse high-performing lineups from tactical self-play, weighted by results.
-export function chooseCpuTeam(rng=Math.random){
+export function chooseCpuTeam(rng=Math.random,available=roster.map(c=>c.id)){
  const teams=[['sherry','nanoka','ema'],['sherry','hanna','ema'],['sherry','hiro','nanoka'],['sherry','nanoka','hanna'],['hanna','sherry','nanoka']];
- if(teams.every(team=>team.every(id=>roster.some(c=>c.id===id))))return teams[draw([.48,.16,.16,.12,.08],rng)].slice();
- const ids=roster.map(c=>c.id);
+ if(available.length===6&&teams.every(team=>team.every(id=>available.includes(id))))return teams[draw([.48,.16,.16,.12,.08],rng)].slice();
+ const ids=[...available];
  for(let i=ids.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
  return ids.slice(0,3);
 }
@@ -182,7 +217,7 @@ export function chooseCpuTeam(rng=Math.random){
 export function cpuView(s){
  const visible=s.teams[0].filter((c,i)=>c.seen||i===s.active[0]);
  const known=visible.map(c=>c.id);
- const pool=roster.map(c=>c.id).filter(id=>!known.includes(id));
+ const pool=(s.preview?.[0]??roster.map(c=>c.id)).filter(id=>!known.includes(id));
  const need=3-visible.length, hypotheses=[];
  function add(ids,start){if(ids.length===need){
   const team=[...visible,...makeTeam(ids)];
@@ -206,7 +241,7 @@ function initiative(s,side){
   return att.moves.map((m,i)=>({m,value:canUseMove(att,i)?attackValue(s,att,def,m):0})).filter(x=>x.value>0);
  }
  const ours=options(a,d),theirs=options(d,a);
- const speed=rankedStat(a,5)-rankedStat(d,5);
+ const speed=(rankedStat(a,5)-rankedStat(d,5))*(s.trickRoom?-1:1);
  const before=(m,n)=>priority(m)>priority(n)||priority(m)===priority(n)&&speed>0;
  const own=Math.max(0,...ours.map(({m,value})=>{
   const danger=Math.max(0,...theirs.filter(x=>!before(m,x.m)).map(x=>x.value))/a.hp;

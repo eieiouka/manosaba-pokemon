@@ -1,5 +1,5 @@
 import {roster,effectiveness,items,struggle} from './data.js';
-export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+31)*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,sleepTurns:0,toxicCounter:0,drowsy:0,protectStreak:0,protectTurn:0,clairvoyanceTurn:0,subHp:0,confusion:0,taunted:0,trappedBy:null}});
+export const makeTeam=ids=>ids.map(id=>{const c=roster.find(x=>x.id===id);const stats=c.base.map((v,i)=>Math.floor((Math.floor((2*v+(c.ivs?.[i]??31))*.5)+(i===0?60:5)+(c.points?.[i]??0))*(c.nature?.[i]??100)/100));return {...c,stats,stages:[0,0,0,0,0,0],hp:stats[0],maxHp:stats[0],lockedMove:null,lastMove:null,encoreTurns:0,encoreMove:null,pp:c.moves.map(m=>m.pp),critRank:0,accuracyStage:0,evasionStage:0,initialItem:c.item??null,revealedItem:null,revealedAbility:false,revealedMoves:[],revivalUsed:false,status:null,sleepTurns:0,toxicCounter:0,drowsy:0,protectStreak:0,protectTurn:0,clairvoyanceTurn:0,subHp:0,confusion:0,taunted:0,trappedBy:null}});
 // Level 50 damage calculation, with integer rounding at each stage.
 export function rankedStat(c,index,ignore=false){
  const stage=ignore?0:Math.max(-6,Math.min(6,Math.trunc(c.stages?.[index]??0)));
@@ -8,9 +8,10 @@ export function rankedStat(c,index,ignore=false){
 }
 const roundHalfDown=(value,numerator,denominator)=>Math.floor((value*numerator+Math.floor((denominator-1)/2))/denominator);
 const grounded=(c,s)=>!!s?.gravity||(!c.types.includes('flying')&&c.ability!=='ふゆう');
-const typeMatchup=(m,d,s)=>m.struggle?1:m.type==='ground'&&s?.gravity?effectiveness(m.type,d.types.filter(t=>t!=='flying')):effectiveness(m.type,d.types);
+const typeMatchup=(m,d,s)=>m.struggle?1:m.liquidControl?d.types.reduce((v,t)=>v*(t==='water'||t==='grass'?2:effectiveness(m.type,[t])),1):m.freezeDry?d.types.reduce((v,t)=>v*(t==='water'?2:effectiveness(m.type,[t])),1):m.type==='ground'&&s?.gravity?effectiveness(m.type,d.types.filter(t=>t!=='flying')):effectiveness(m.type,d.types);
 const matchup=(m,d,s,a=null)=>{
  if(m.struggle)return 1;
+ if(m.ohko)return d.types.includes('ice')?0:1;
  if(m.type==='ground'&&d.ability==='ふゆう'&&!s?.gravity)return 0;
  return a?.ability==='むこせい'||d.ability==='むこせい'?1:typeMatchup(m,d,s);
 };
@@ -18,12 +19,15 @@ const terrainBlocked=(s,m,d)=>!!s?.psychicTerrain&&!m.protect&&!m.clairvoyance&&
 export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
  const e=matchup(m,d,s,a);
  if(!e)return 0;
+ if(m.ohko)return Math.max(d.hp,d.subHp??0);
  const i=m.category==='physical'?1:3;
  const attacker=m.foulPlay?{...d,item:a.item,ability:a.ability}:a;
- const attack=m.puppet?Math.max(d.stats[1],d.stats[3]):rankedStat(attacker,i,critical&&(attacker.stages?.[i]??0)<0);
- const defense=rankedStat(d,i+1,critical&&(d.stages?.[i+1]??0)>0);
+ const attack=m.puppet?Math.max(...[1,3].map(k=>rankedStat({...d,item:a.item,ability:a.ability},k,critical&&(d.stages?.[k]??0)<0))):rankedStat(attacker,i,(d.ability==='てんねん'&&!m.foulPlay)||(a.ability==='てんねん'&&m.foulPlay)||critical&&(attacker.stages?.[i]??0)<0);
+ const defense=rankedStat(d,i+1,a.ability==='てんねん'||critical&&(d.stages?.[i+1]??0)>0);
  const basePower=m.storedPower?20+20*(a.stages.slice(1).reduce((sum,v)=>sum+Math.max(0,v),0)+Math.max(0,a.accuracyStage??0)+Math.max(0,a.evasionStage??0)):m.power;
- const power=s?.psychicTerrain&&m.type==='psychic'&&grounded(a,s)?roundHalfDown(basePower,5325,4096):basePower;
+ const boostedPower=m.liquidControl&&d.status?basePower*2:basePower;
+ const fieldPower=s?.psychicTerrain&&m.type==='psychic'&&grounded(a,s)?roundHalfDown(boostedPower,5325,4096):boostedPower;
+ const power=a.item==='neverMeltIce'&&m.type==='ice'?roundHalfDown(fieldPower,4915,4096):fieldPower;
  let value=Math.floor(Math.floor(22*power*(m.latePower&&second?2:1)*attack/defense)/50)+2;
  if(critical)value=roundHalfDown(value,3,2);
  value=Math.floor(value*roll/100);
@@ -33,13 +37,17 @@ export function damage(a,d,m,roll=100,critical=false,second=false,s=null){
  if(a.item==='orb')value=roundHalfDown(value,5324,4096);
  return Math.max(1,value);
 }
-const accuracyChance=(m,a,d,s)=>{const stage=Math.max(-6,Math.min(6,(a.accuracyStage??0)-(d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
+const accuracyChance=(m,a,d,s)=>{if(m.ohko)return a.types.includes('ice')?30:20;const stage=Math.max(-6,Math.min(6,(d.ability==='てんねん'?0:a.accuracyStage??0)-(a.ability==='てんねん'?0:d.evasionStage??0)));return Math.min(100,m.accuracy*(stage>=0?3+stage:3)/(stage>=0?3:3-stage)*(s?.gravity?5/3:1))};
 const criticalChance=(m,a)=>[1/24,1/8,1/2,1][Math.max(0,Math.min(3,(a.critRank??0)+(m.critStage??(m.name==='サイコカッター'?1:0))))];
-export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3)){
- const s={teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0};
+export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random()-.5).slice(0,3),preview=null){
+ const s={preview,teams:[makeTeam(ids),makeTeam(enemy)],active:[0,0],turn:1,logs:['バトル開始！'],winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
  const steps=[{state:structuredClone(s),delay:950}];
  for(const side of [0,1]){
-  const c=s.teams[side][0];c.seen=true;if(c.ability==='せんのう'){
+  const c=s.teams[side][0];c.seen=true;if(c.ability==='しせんゆうどう'){
+   c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};
+   s.logs.push(`${side===1?'相手の':''}${c.name}のしせんゆうどう！`);steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
+   s.logs.push('相手は交代できなくなった！');steps.push({state:structuredClone(s),delay:850,ability});continue;
+  }if(c.ability==='せんのう'){
    c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability},target=s.teams[1-side][0],prefix=side===0?'相手の':'';
    s.logs.push(`${side===1?'相手の':''}${c.name}のせんのう！`);
    steps.push({state:structuredClone(s),delay:950,sound:'activate',ability});
@@ -64,8 +72,8 @@ export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random
  return steps;
 }
 export function start(ids){return startSequence(ids).at(-1).state}
-export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:m.multiHit==='silver'?6:1;
-export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return !!c.trappedBy&&c.hp>0&&!c.types.includes('ghost')&&other.hp>0&&c.trappedBy===other.id};
+export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:m.multiHit==='silver'?6:m.multiHit==='double'?2:1;
+export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return c.hp>0&&other.hp>0&&(other.ability==='しせんゆうどう'||!!c.trappedBy&&!c.types.includes('ghost')&&c.trappedBy===other.id)};
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
 export const canSwapStatus=(a,d)=>!!a.status&&(!d.status||a.status==='toxic'&&d.status==='poison');
 const canBeneficialSwap=(a,d)=>a.stages.some((v,i)=>i>0&&v<d.stages[i])||['accuracyStage','evasionStage','critRank'].some(key=>(a[key]??0)<(d[key]??0))||canSwapStatus(a,d)||['confusion','drowsy','taunted','silenced'].some(key=>(a[key]??0)>(d[key]??0));
@@ -74,20 +82,21 @@ export function damageRange(s,a,d,m){
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
  const hits=hitLimit(s,m);
  if(m.ignite&&terrainBlocked(s,m,visible))return {label:'無効',min:0,max:0};
- if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.agility&&a.stages[5]>=6||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||(m.recover||m.rest)&&a.hp>=a.maxHp||m.amnesia&&a.stages[4]>=6||m.swapStages&&!canBeneficialSwap(a,d)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.agility&&a.stages[5]>=6||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.encore&&(d.lastMove==null||d.lastMove<0||d.encoreTurns>0||!d.moves[d.lastMove]||d.moves[d.lastMove].encore||!(d.pp[d.lastMove]>0))||m.parting&&(!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||d.stages[1]<=-6&&d.stages[3]<=-6)||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
+ if(m.ohko)return {label:'一撃必殺',min:100,max:100};
  const i=m.category==='physical'?2:4;
  const target=invested=>({...d,ability:d.revealedAbility?d.ability:null,item:d.revealedItem===d.item?d.item:null,stats:d.base.map((v,k)=>k===0?v+75+(invested?32:0):k===i?(invested?Math.floor((v+52)*1.1):v+20):(m.foulPlay&&k===1||m.puppet&&(k===1||k===3))&&!invested?Math.floor((v+52)*1.1):v+20)});
  const low=target(true),high=target(false);
  return {label,min:Math.floor(damage(a,low,m,85,criticalChance(m,a)===1,false,s)*100/low.stats[0]),max:Math.floor(damage(a,high,m,100,criticalChance(m,a)===1,false,s)*100/high.stats[0])};
 }
-export const canUseMove=(c,i)=>i===-1?!c.moves.some((m,k)=>canUseMove(c,k)):!!c.moves[i]&&(c.pp?.[i]??c.moves[i].pp)>0&&!((c.item==='vest'||c.taunted>0)&&c.moves[i].category==='status')&&(!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i);
+export const canUseMove=(c,i)=>i===-1?!c.moves.some((m,k)=>canUseMove(c,k)):!!c.moves[i]&&(c.pp?.[i]??c.moves[i].pp)>0&&!((c.item==='vest'||c.taunted>0)&&c.moves[i].category==='status')&&(!items[c.item]?.choice||c.lockedMove==null||c.lockedMove===i)&&(!(c.encoreTurns>0)||c.encoreMove===i);
 const moveScore=(s,a,d,m)=>{
  if(terrainBlocked(s,m,d)||m.category==='status'||m.soundMove&&a.silenced>0||!accuracyChance(m,a,d,s))return 0;
  if(m.sucker&&!d.moves.some((other,i)=>other.category!=='status'&&canUseMove(d,i))&&!canUseMove(d,-1))return 0;
- return damage(a,d,m,100,criticalChance(m,a)===1,rankedStat(a,5)<rankedStat(d,5),s)*hitLimit(s,m);
+ return damage(a,d,m,100,criticalChance(m,a)===1,rankedStat(a,5)<rankedStat(d,5),s)*hitLimit(s,m)*(m.ohko?accuracyChance(m,a,d,s)/100:1);
 };
 const movePriority=m=>m?.priority??(m?.name==='かげうち'?1:0);
 // Prefer a priority move when both attacks can finish the current opponent reliably.
@@ -126,7 +135,8 @@ const attackSound=m=>m.sound??attackSounds[m.name]??(m.type==='electric'?'electr
 // Each step contains a complete battle snapshot and a display duration.
 export function resolveSequence(s,action,rng=Math.random,options={}){
   if(s.winner!==null)return [];
-  const n=structuredClone(s),steps=[];
+  // Fast simulation shares immutable roster data; copy every mutable array/record.
+  const n=options.fast?{...s,active:[...s.active],logs:[...s.logs],...(s.pendingSwitch?{pendingSwitch:structuredClone(s.pendingSwitch)}:{}),teams:s.teams.map(t=>t.map(c=>({...c,stages:[...c.stages],pp:[...c.pp],revealedMoves:[...c.revealedMoves]})))}:structuredClone(s),steps=[];
   const alive=side=>n.teams[side].some(c=>c.hp>0);
   const current=side=>n.teams[side][n.active[side]];
   const emit=(message,delay=850,sound=null,ability=null,itemNotice=null,statNotice=null)=>{if(message&&!options.fast)n.logs.push(message);if(options.fast)steps[0]={state:n,delay:0};else steps.push({state:structuredClone(n),delay,sound,ability,itemNotice,statNotice})};
@@ -134,6 +144,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const name=(c,side)=>`${side===1?'相手の':''}${c.name}`;
   const entryAbility=side=>{
     const c=current(side);c.seen=true;
+    if(c.ability==='しせんゆうどう'){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のしせんゆうどう！`,950,'activate',ability);emit(`${name(current(1-side),1-side)}は交代できなくなった！`,850,null,ability);return}
     if(c.ability==='せんのう'){
       const d=current(1-side);if(d.hp<=0)return;
       c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};
@@ -164,9 +175,14 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     }
   };
   const onEntry=side=>{entryAbility(side);psychicSeeds()};
+  const wakeBerry=(c,side)=>{
+    if(c.hp<=0||c.item!=='chesto'||c.status!=='sleep')return;
+    const notice=activateItem(c,side,'chesto');c.item=null;c.status=null;c.sleepTurns=0;
+    emit(`${name(c,side)}は目を覚ました！`,850,null,null,notice);
+  };
   const heal=(c,side,amount,item)=>{if(c.hp<=0||c.hp>=c.maxHp)return;const notice=activateItem(c,side,item);if(item==='sitrus')c.item=null;c.hp=Math.min(c.maxHp,c.hp+Math.max(1,amount));emit(`${name(c,side)}は${items[item].name}でHPを回復した！`,850,'heal',null,notice)};
   const berry=(c,side)=>{if(c.item==='sitrus'&&c.hp>0&&c.hp*2<=c.maxHp)heal(c,side,Math.floor(c.maxHp/4),'sitrus')};
-  const resetStages=c=>{c.stages=[0,0,0,0,0,0];c.lockedMove=null;c.silenced=0;c.critRank=0;c.accuracyStage=0;c.evasionStage=0;c.confusion=0;c.drowsy=0;c.protectStreak=0;c.protectTurn=0;c.clairvoyanceTurn=0;c.subHp=0;c.toxicCounter=0;c.taunted=0;c.trappedBy=null};
+  const resetStages=c=>{c.stages=[0,0,0,0,0,0];c.lockedMove=null;c.lastMove=null;c.encoreTurns=0;c.encoreMove=null;c.silenced=0;c.critRank=0;c.accuracyStage=0;c.evasionStage=0;c.confusion=0;c.drowsy=0;c.protectStreak=0;c.protectTurn=0;c.clairvoyanceTurn=0;c.subHp=0;c.toxicCounter=0;c.taunted=0;c.trappedBy=null};
   const reserves=side=>n.teams[side].map((c,i)=>i).filter(i=>i!==n.active[side]&&n.teams[side][i].hp>0);
   const pickReserve=side=>{const list=reserves(side);const chosen=(side===1?options.cpuChooseSwitch??options.chooseSwitch:options.chooseSwitch)?.(n,side,list);return list.includes(chosen)?chosen:list[0]};
   const switchTo=(side,index,baton=false)=>{const old=current(side);const pass=baton?{stages:[...old.stages],accuracyStage:old.accuracyStage,evasionStage:old.evasionStage,critRank:old.critRank,subHp:old.subHp}:null;if(current(1-side).trappedBy===old.id)current(1-side).trappedBy=null;resetStages(old);n.active[side]=index;if(pass)Object.assign(current(side),pass);emit(`${name(old,side)}を戻した！ ${name(current(side),side)}を繰り出した！`,850,'switch');onEntry(side)};
@@ -189,47 +205,49 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
   const actions=pending?.actions??[action,options.opponentAction??chooseCpu(n)];
   if(!pending&&options.opponentAction){const x=actions[1];if(x.kind==='switch'&&(isTrapped(n,1)||!reserves(1).includes(x.index))||x.kind==='move'&&!canUseMove(current(1),x.index))return []}
   const priority=side=>actions[side].kind==='switch'?6:movePriority(current(side).moves[actions[side].index]);
-  const difference=priority(0)-priority(1)||rankedStat(current(0),5)-rankedStat(current(1),5);
+  const difference=priority(0)-priority(1)||(rankedStat(current(0),5)-rankedStat(current(1),5))*(n.trickRoom&&actions.every(x=>x.kind==='move')?-1:1);
   const order=pending?.order??(difference>0?[0,1]:difference<0?[1,0]:rng()<.5?[0,1]:[1,0]);
   const flinched=new Set(pending?.flinched??[]);
   for(let pos=pending?.next??0;pos<order.length;pos++){
     const side=order[pos];
-    const a=current(side),d=current(1-side),act=actions[side];
+    const a=current(side),d=current(1-side);let act=actions[side];
     if(a.hp<=0||d.hp<=0)continue;
     if(act.kind==='switch'){
       switchTo(side,act.index);
       continue;
     }
     if(flinched.has(side)){emit(`${name(a,side)}はひるんで動けなかった！`);continue}
+    if(a.status==='freeze'){if(rng()<.2){a.status=null;emit(`${name(a,side)}のこおりがとけた！`,850)}else{emit(`${name(a,side)}はこおりついて動けなかった！`,850);continue}}
     if(a.status==='sleep'){if(a.sleepTurns>0){a.sleepTurns--;emit(`${name(a,side)}はぐうぐう眠っている！`,850,'sleep');continue}a.status=null;emit(`${name(a,side)}は目を覚ました！`)}
     if(a.confusion>0){a.confusion--;if(a.confusion===0)emit(`${name(a,side)}の混乱が解けた！`);else{emit(`${name(a,side)}は混乱している！`);if(rng()<1/3){const selfDamage=damage({...a,item:null},a,{type:'normal',category:'physical',power:40,struggle:true},100);a.hp=Math.max(0,a.hp-selfDamage);emit(`${name(a,side)}はわけもわからず自分を攻撃した！`,850,'hit');faint(a,side);continue}}}
-    const m=act.index===-1?struggle:a.moves[act.index];if(m?.category==='status'&&a.taunted>0){emit(`${name(a,side)}はちょうはつされて${m.name}が出せない！`);continue}if(!m||!canUseMove(a,act.index))continue;
+    if(a.encoreTurns>0&&act.kind==='move'&&(act.index!==a.encoreMove||!canUseMove(a,act.index))){act={kind:'move',index:canUseMove(a,a.encoreMove)?a.encoreMove:-1};actions[side]=act}
+    const m=act.index===-1?struggle:a.moves[act.index];if(m?.category==='status'&&a.taunted>0){emit(`${name(a,side)}はちょうはつされて、${m.name}が出せない！`);continue}if(!m||!canUseMove(a,act.index))continue;
     if(act.index!==-1){a.pp[act.index]--;if(items[a.item]?.choice)a.lockedMove=act.index;}
+    a.lastMove=act.index;
     if(act.index!==-1&&!a.revealedMoves.includes(act.index))a.revealedMoves.push(act.index);
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
     if(terrainBlocked(n,m,d)){emit('サイコフィールドに守られた！');continue}
     if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
     if(m.clairvoyance){
-      if(actions[1-side].kind==='switch'||pos>0){a.protectStreak=0;a.clairvoyanceTurn=0;emit('しかし上手く決まらなかった！');continue}
       const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===n.turn-1?a.protectStreak??0:0;
       if(streak&&rng()>=Math.pow(1/3,streak)){a.protectStreak=0;emit('しかし上手く決まらなかった！');continue}
-      a.protectStreak=streak+1;a.clairvoyanceTurn=n.turn;emit(`${name(a,side)}は相手の攻撃を見切った！`,850,'protect');
+      a.protectStreak=streak+1;a.clairvoyanceTurn=n.turn;emit(`${name(a,side)}は相手の動きを見切った！`,850,'protect');
       if(a.evasionStage<6){a.evasionStage++;emit(`${name(a,side)}の回避率が上がった！`,850,'up',null,null,{side,stat:'回避率',delta:1})}
       continue;
     }
-    if(d.clairvoyanceTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite)){emit(`${name(d,1-side)}は相手の技をかわした！`,850);continue}
+    if(d.clairvoyanceTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite||m.parting||m.encore)){emit(`${name(d,1-side)}は相手の技をかわした！`,850);continue}
     if(m.agility){
       const delta=Math.min(2,6-a.stages[5]);if(!delta){emit('しかし上手く決まらなかった！');continue}
       a.stages[5]+=delta;emit(`${name(a,side)}の素早さが${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'素早さ',delta});continue;
     }
     if(m.protect){
-      if(actions[1-side].kind==='switch'){a.protectStreak=0;a.protectTurn=0;emit('しかし上手く決まらなかった！');continue}
+      if(actions[1-side].kind==='switch'||pos>0){a.protectStreak=0;a.protectTurn=0;emit('しかし上手く決まらなかった！');continue}
       const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===n.turn-1?a.protectStreak??0:0;
       if(streak&&rng()>=Math.pow(1/3,streak)){a.protectStreak=0;emit('しかし上手く決まらなかった！');continue}
       a.protectStreak=streak+1;a.protectTurn=n.turn;
       emit(`${name(a,side)}は守りの体勢に入った！`,850,'protect');continue;
     }
-    if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite)){
+    if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite||m.parting||m.encore)){
       emit(`${name(d,1-side)}は攻撃から身を守った！`,850);continue;
     }
     if(m.substitute){
@@ -243,11 +261,20 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       else{n.pendingSwitch={reason:'baton',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
       continue;
     }
-    if(d.subHp&&(m.toxic||m.yawn||m.sleep||m.confuse)){emit('身代わりに防がれた！');continue}
+    if(d.subHp&&!m.soundMove&&(m.toxic||m.yawn||m.sleep||m.confuse||m.parting)){emit('身代わりに防がれた！');continue}
     if(m.calmMind){
       if(a.stages[3]>=6&&a.stages[4]>=6){emit('しかし上手く決まらなかった！');continue}
       for(const [index,stat] of [[3,'特攻'],[4,'特防']])if(a.stages[index]<6){a.stages[index]++;emit(`${name(a,side)}の${stat}が上がった！`,850,'up',null,null,{side,stat,delta:1})}
       continue;
+    }
+    if(m.amnesia){
+      const delta=Math.min(2,6-a.stages[4]);if(!delta){emit('しかし上手く決まらなかった！');continue}
+      a.stages[4]+=delta;emit(`${name(a,side)}の特防が${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'特防',delta});continue;
+    }
+    if(m.rest){
+      if(a.hp>=a.maxHp){emit('しかし上手く決まらなかった！');continue}
+      a.hp=a.maxHp;a.status='sleep';a.sleepTurns=2;a.toxicCounter=0;a.drowsy=0;
+      emit(`${name(a,side)}は眠ってHPを全回復した！`,850,'heal');wakeBerry(a,side);continue;
     }
     if(m.recover){
       if(a.hp>=a.maxHp){emit('しかし上手く決まらなかった！');continue}
@@ -263,10 +290,25 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       if(d.status||d.drowsy>0){emit('しかし上手く決まらなかった！');continue}
       d.drowsy=2;emit(`${name(d,1-side)}は眠気をもよおした！`,850);continue;
     }
+    if(m.trickRoom){if(n.trickRoom){n.trickRoom=0;emit('時空のゆがみが元に戻った！')}else{n.trickRoom=5;emit('時空がゆがみ始めた！')}continue}
+    if(m.encore){
+      const i=d.lastMove;
+      if(i==null||i<0||d.encoreTurns>0||!d.moves[i]||d.moves[i].encore||!(d.pp[i]>0)){emit('しかし上手く決まらなかった！');continue}
+      if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
+      d.encoreMove=i;d.encoreTurns=3;emit(`${name(d,1-side)}はアンコールを受けた！`,850);continue;
+    }
+    if(m.parting){
+      if(!reserves(side).length||d.stages[1]<=-6&&d.stages[3]<=-6){emit('しかし上手く決まらなかった！');continue}
+      if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
+      for(const [index,stat] of [[1,'攻撃'],[3,'特攻']])if(d.stages[index]>-6){d.stages[index]--;emit(`${name(d,1-side)}の${stat}が下がった！`,850,'down',null,null,{side:1-side,stat,delta:-1})}
+      if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));
+      else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
+      continue;
+    }
     if(m.gravity){if(n.gravity>0){emit('しかし上手く決まらなかった！');continue}n.gravity=5;emit('重力が強くなった！');continue}
     if(m.sleep||m.confuse||m.taunt){
       if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
-      if(m.sleep||m.confuse){if(m.sleep?!!d.status:d.confusion>0){emit('しかし上手く決まらなかった！');continue}if(m.sleep){d.status='sleep';d.sleepTurns=1+Math.floor(rng()*3);emit(`${name(d,1-side)}は眠ってしまった！`,850,'sleep')}else{d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850)}if(reserves(side).length){if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
+      if(m.sleep||m.confuse){if(m.sleep?!!d.status:d.confusion>0){emit('しかし上手く決まらなかった！');continue}if(m.sleep){d.status='sleep';d.sleepTurns=1+Math.floor(rng()*3);emit(`${name(d,1-side)}は眠ってしまった！`,850,'sleep');wakeBerry(d,1-side)}else{d.confusion=2+Math.floor(rng()*4);emit(`${name(d,1-side)}は混乱した！`,850)}if(m.pivot&&reserves(side).length){if(side===1||options.chooseSwitch)switchTo(side,pickReserve(side));else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}}}
       else{if(d.taunted>0){emit('しかし上手く決まらなかった！');continue}d.taunted=3;emit(`${name(d,1-side)}はちょうはつに乗った！`)}continue;
     }
     if(m.swordsDance){if(a.stages[1]>=6){emit('しかし上手く決まらなかった！');continue}const delta=Math.min(2,6-a.stages[1]);a.stages[1]+=delta;emit(`${name(a,side)}の攻撃が${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'攻撃',delta});continue}
@@ -280,6 +322,8 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
     if(!limit){emit('しかし上手く決まらなかった！');continue}
     const e=matchup(m,d,n,a);
+    const atkIndex=m.category==='physical'?1:3;
+    for(const [holder,holderSide,affected] of [[a,side,d.stages[atkIndex+1]||(d.evasionStage??0)],[d,1-side,a.stages[atkIndex]||(a.accuracyStage??0)]])if(holder.ability==='てんねん'&&affected&&!holder.revealedAbility){holder.revealedAbility=true;const ability={side:holderSide,name:holder.name,ability:holder.ability};emit(null,650);emit(`${name(holder,holderSide)}のてんねん！`,950,'activate',ability)}
     if(typeMatchup(m,d,n)!==1&&e===1){
       for(const [holder,holderSide] of [[a,side],[d,1-side]])if(holder.ability==='むこせい'&&!holder.revealedAbility){
         holder.revealedAbility=true;const ability={side:holderSide,name:holder.name,ability:holder.ability};
@@ -290,9 +334,9 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
     let hits=0,totalDamage=0,bodyHits=0;
     for(let i=0;i<limit&&d.hp>0&&a.hp>0;i++){
-      if((m.multiHit!=='silver'||i===0)&&rng()*100>=accuracyChance(m,a,d,n)){if(!hits)emit('しかし外れてしまった！');break}
+      if((!['silver','double'].includes(m.multiHit)||i===0)&&rng()*100>=accuracyChance(m,a,d,n)){if(!hits)emit('しかし外れてしまった！');break}
       if(i===0&&m.contact&&d.ability==='げんし'&&rng()<.2){d.revealedAbility=true;emit(`${name(d,1-side)}のげんし！`,950,'activate',{side:1-side,name:d.name,ability:d.ability});emit(`${name(d,1-side)}は攻撃をかわした！`);break}
-      const critical=rng()<criticalChance(m,a);
+      const critical=!m.ohko&&rng()<criticalChance(m,a);
       const roll=85+Math.min(15,Math.floor(rng()*16));
       const dealt=damage(a,d,m,roll,critical,side===order[1]&&actions[1-side].kind==='move',n);
       if(d.subHp&&!m.soundMove){hits++;d.subHp=Math.max(0,d.subHp-dealt);emit(d.subHp?'身代わりが攻撃を受けた！':'身代わりが消えた！',850,attackSound(m));continue}
@@ -325,6 +369,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     else if(e>1)emit('効果は抜群だ！');
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
+    if(m.ohko&&bodyHits&&d.hp<=0)emit('一撃必殺！');
     if(m.multiHit)emit(`${hits}回当たった！`);
     if(m.ignite&&a.hp>0){
       if(bodyHits&&d.hp>0&&!d.status&&!d.types.includes('fire')){emit(null,650);d.status='burn';d.drowsy=0;emit(`${name(d,1-side)}はやけどを負った！`,850,'burn')}
@@ -342,7 +387,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       swap('accuracyStage','命中率');swap('evasionStage','回避率');swap('critRank','急所');
       if(canSwapStatus(a,d)){
         for(const key of ['status','sleepTurns','toxicCounter']){[a[key],d[key]]=[d[key],a[key]]}
-        emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);
+        emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);wakeBerry(a,side);wakeBerry(d,1-side);
       }
       for(const [key,label] of [['confusion','混乱'],['drowsy','ねむけ'],['taunted','ちょうはつ'],['silenced','音技封じ']]){
         if((a[key]??0)>(d[key]??0)){[a[key],d[key]]=[d[key]??0,a[key]??0];emit(`${name(a,side)}と${name(d,1-side)}の${label}が入れ替わった！`,850)}
@@ -352,6 +397,8 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     }
 
     if(bodyHits&&d.hp>0&&m.trap&&!d.types.includes('ghost')&&d.trappedBy!==a.id){d.trappedBy=a.id;emit(`${name(d,1-side)}は逃げられなくなった！`)}
+    if(bodyHits&&d.hp>0&&d.status==='freeze'&&m.type==='fire'){d.status=null;emit(`${name(d,1-side)}のこおりがとけた！`,850)}
+    if(bodyHits&&d.hp>0&&m.freezeChance&&!d.status&&!d.types.includes('ice')&&rng()*100<m.freezeChance){emit(null,650);d.status='freeze';d.drowsy=0;emit(`${name(d,1-side)}はこおりついた！`,850,'freeze')}
     if(bodyHits&&d.hp>0&&m.burnChance&&!d.status&&!d.types.includes('fire')&&rng()*100<m.burnChance){emit(null,650);d.status='burn';emit(`${name(d,1-side)}はやけどを負った！`,850,'burn')}
     if(m.raiseCrit&&a.critRank<3){emit(null,650);const delta=Math.min(m.raiseCrit,3-a.critRank);a.critRank+=delta;emit(`${name(a,side)}の急所ランクが上がった！`,850,'up',null,null,{side,stat:'急所',delta})}
     if(m.selfDefenseDown){emit(null,650);for(const [index,stat] of [[2,'防御'],[4,'特防']])if(a.stages[index]>-6){a.stages[index]--;emit(`${name(a,side)}の${stat}が下がった！`,850,'down',null,null,{side,stat,delta:-1})}}
@@ -373,22 +420,33 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
     }
   }
+  // End-of-turn effects use current Speed, never move priority.
+  const endSpeed=rankedStat(current(0),5)-rankedStat(current(1),5);
+  const endOrder=endSpeed>0?[0,1]:endSpeed<0?[1,0]:rng()<.5?[0,1]:[1,0];
   if(alive(0)&&alive(1)){
-    for(const side of order){const c=current(side);if(c.item==='leftovers')heal(c,side,Math.floor(c.maxHp/16),'leftovers')}
+    for(const side of endOrder){const c=current(side);if(c.item==='leftovers'||c.item==='blackSludge'&&c.types.includes('poison'))heal(c,side,Math.floor(c.maxHp/16),c.item);else if(c.item==='blackSludge'&&c.hp>0){const notice=activateItem(c,side,'blackSludge');c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/8)));emit(`${name(c,side)}はくろいヘドロでダメージを受けた！`,850,'poison',null,notice);faint(c,side)}}
   }
-  for(const side of order){const c=current(side);if(c.hp>0&&c.status==='burn'){c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/16)));emit(`${name(c,side)}はやけどのダメージを受けた！`,850,'burn');faint(c,side)}}
-  for(const side of order){
+  for(const side of endOrder){const c=current(side);if(c.hp>0&&c.status==='burn'){c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/16)));emit(`${name(c,side)}はやけどのダメージを受けた！`,850,'burn');faint(c,side)}}
+  for(const side of endOrder){
     const c=current(side);
     if(c.hp>0&&c.status==='poison'){emit(null,650);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/8)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
     if(c.hp>0&&c.status==='toxic'){emit(null,650);c.toxicCounter=Math.min(15,(c.toxicCounter??0)+1);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp*c.toxicCounter/16)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
-    if(c.hp>0&&c.drowsy>0&&!--c.drowsy&&!c.status){c.status='sleep';c.sleepTurns=1+Math.floor(rng()*3);emit(`${name(c,side)}は眠ってしまった！`,850,'sleep')}
+    if(c.hp>0&&c.drowsy>0&&!--c.drowsy&&!c.status){c.status='sleep';c.sleepTurns=1+Math.floor(rng()*3);emit(`${name(c,side)}は眠ってしまった！`,850,'sleep');wakeBerry(c,side)}
   }
-  for(const side of [0,1]){const c=current(side);if(c.silenced>0)c.silenced--;if(c.taunted>0&&!--c.taunted)emit(`${name(c,side)}のちょうはつが解けた！`)}
+  for(const side of endOrder){const c=current(side);if(c.encoreTurns>0&&(!(--c.encoreTurns)||!(c.pp[c.encoreMove]>0))){c.encoreTurns=0;c.encoreMove=null;emit(`${name(c,side)}のアンコールが解けた！`)}if(c.silenced>0)c.silenced--;if(c.taunted>0&&!--c.taunted)emit(`${name(c,side)}のちょうはつが解けた！`)}
   if(n.psychicTerrain>0&&!--n.psychicTerrain)emit('サイコフィールドが消えた！');
+  if(n.trickRoom>0&&!--n.trickRoom)emit('時空のゆがみが元に戻った！');
   if(n.gravity>0&&!--n.gravity)emit('重力が元に戻った！');
-  for(const side of order){const c=current(side);if(c.hp>0&&c.ability==='かそく'&&c.stages[5]<6){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のかそく！`,950,'activate',ability);c.stages[5]++;emit(`${name(c,side)}の素早さが上がった！`,850,'up',ability,null,{side,stat:'素早さ',delta:1})}}
-  for(const side of order){
-    const c=current(side);if(c.hp<=0||c.ability!=='きまぐれ')continue;
+  for(const side of endOrder){
+    const c=current(side);if(c.hp<=0)continue;
+    if(c.ability==='かそく'&&c.stages[5]<6){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のかそく！`,950,'activate',ability);c.stages[5]++;emit(`${name(c,side)}の素早さが上がった！`,850,'up',ability,null,{side,stat:'素早さ',delta:1});continue}
+    if(c.ability==='ちゆのまほう'&&(c.status||c.hp<c.maxHp)){
+      c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のちゆのまほう！`,950,'activate',ability);
+      if(c.status){c.status=null;c.sleepTurns=0;c.toxicCounter=0;emit(`${name(c,side)}の状態異常が治った！`,850,null,ability)}
+      if(c.hp<c.maxHp){c.hp=Math.min(c.maxHp,c.hp+Math.max(1,Math.floor(c.maxHp/8)));emit(`${name(c,side)}はHPを回復した！`,850,'heal',ability)}
+      continue;
+    }
+    if(c.ability!=='きまぐれ')continue;
     const indices=[1,2,3,4,5],labels=['HP','攻撃','防御','特攻','特防','素早さ'];
     const up=indices.filter(i=>c.stages[i]<6);const u=up.length?up[Math.min(up.length-1,Math.floor(rng()*up.length))]:null;
     const down=indices.filter(i=>i!==u&&c.stages[i]>-6);const v=down.length?down[Math.min(down.length-1,Math.floor(rng()*down.length))]:null;

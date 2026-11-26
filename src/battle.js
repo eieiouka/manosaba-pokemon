@@ -216,10 +216,9 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(terrainBlocked(n,m,d)){emit('サイコフィールドに守られた！');continue}
     if(m.soundMove&&a.silenced>0){emit(`${name(a,side)}は音の技が出せない！`);continue}
     if(m.clairvoyance){
-      if(actions[1-side].kind==='switch'||pos>0){a.protectStreak=0;a.clairvoyanceTurn=0;emit('しかし上手く決まらなかった！');continue}
       const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===n.turn-1?a.protectStreak??0:0;
       if(streak&&rng()>=Math.pow(1/3,streak)){a.protectStreak=0;emit('しかし上手く決まらなかった！');continue}
-      a.protectStreak=streak+1;a.clairvoyanceTurn=n.turn;emit(`${name(a,side)}は相手の攻撃を見切った！`,850,'protect');
+      a.protectStreak=streak+1;a.clairvoyanceTurn=n.turn;emit(`${name(a,side)}は相手の動きを見切った！`,850,'protect');
       if(a.evasionStage<6){a.evasionStage++;emit(`${name(a,side)}の回避率が上がった！`,850,'up',null,null,{side,stat:'回避率',delta:1})}
       continue;
     }

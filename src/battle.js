@@ -373,22 +373,26 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       else{n.pendingSwitch={reason:'pivot',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
     }
   }
+  // End-of-turn effects use current Speed, never move priority.
+  const endSpeed=rankedStat(current(0),5)-rankedStat(current(1),5);
+  const endOrder=endSpeed>0?[0,1]:endSpeed<0?[1,0]:rng()<.5?[0,1]:[1,0];
   if(alive(0)&&alive(1)){
-    for(const side of order){const c=current(side);if(c.item==='leftovers')heal(c,side,Math.floor(c.maxHp/16),'leftovers')}
+    for(const side of endOrder){const c=current(side);if(c.item==='leftovers')heal(c,side,Math.floor(c.maxHp/16),'leftovers')}
   }
-  for(const side of order){const c=current(side);if(c.hp>0&&c.status==='burn'){c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/16)));emit(`${name(c,side)}はやけどのダメージを受けた！`,850,'burn');faint(c,side)}}
-  for(const side of order){
+  for(const side of endOrder){const c=current(side);if(c.hp>0&&c.status==='burn'){c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/16)));emit(`${name(c,side)}はやけどのダメージを受けた！`,850,'burn');faint(c,side)}}
+  for(const side of endOrder){
     const c=current(side);
     if(c.hp>0&&c.status==='poison'){emit(null,650);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp/8)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
     if(c.hp>0&&c.status==='toxic'){emit(null,650);c.toxicCounter=Math.min(15,(c.toxicCounter??0)+1);c.hp=Math.max(0,c.hp-Math.max(1,Math.floor(c.maxHp*c.toxicCounter/16)));emit(`${name(c,side)}は毒のダメージを受けた！`,850,'poison');berry(c,side);faint(c,side)}
     if(c.hp>0&&c.drowsy>0&&!--c.drowsy&&!c.status){c.status='sleep';c.sleepTurns=1+Math.floor(rng()*3);emit(`${name(c,side)}は眠ってしまった！`,850,'sleep')}
   }
-  for(const side of [0,1]){const c=current(side);if(c.silenced>0)c.silenced--;if(c.taunted>0&&!--c.taunted)emit(`${name(c,side)}のちょうはつが解けた！`)}
+  for(const side of endOrder){const c=current(side);if(c.silenced>0)c.silenced--;if(c.taunted>0&&!--c.taunted)emit(`${name(c,side)}のちょうはつが解けた！`)}
   if(n.psychicTerrain>0&&!--n.psychicTerrain)emit('サイコフィールドが消えた！');
   if(n.gravity>0&&!--n.gravity)emit('重力が元に戻った！');
-  for(const side of order){const c=current(side);if(c.hp>0&&c.ability==='かそく'&&c.stages[5]<6){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のかそく！`,950,'activate',ability);c.stages[5]++;emit(`${name(c,side)}の素早さが上がった！`,850,'up',ability,null,{side,stat:'素早さ',delta:1})}}
-  for(const side of order){
-    const c=current(side);if(c.hp<=0||c.ability!=='きまぐれ')continue;
+  for(const side of endOrder){
+    const c=current(side);if(c.hp<=0)continue;
+    if(c.ability==='かそく'&&c.stages[5]<6){c.revealedAbility=true;const ability={side,name:c.name,ability:c.ability};emit(null,650);emit(`${name(c,side)}のかそく！`,950,'activate',ability);c.stages[5]++;emit(`${name(c,side)}の素早さが上がった！`,850,'up',ability,null,{side,stat:'素早さ',delta:1});continue}
+    if(c.ability!=='きまぐれ')continue;
     const indices=[1,2,3,4,5],labels=['HP','攻撃','防御','特攻','特防','素早さ'];
     const up=indices.filter(i=>c.stages[i]<6);const u=up.length?up[Math.min(up.length-1,Math.floor(rng()*up.length))]:null;
     const down=indices.filter(i=>i!==u&&c.stages[i]>-6);const v=down.length?down[Math.min(down.length-1,Math.floor(rng()*down.length))]:null;

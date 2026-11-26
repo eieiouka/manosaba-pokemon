@@ -85,7 +85,6 @@ function quickAction(s,side){
     if(m.calmMind&&(a.stages[3]<6||a.stages[4]<6)&&best<d.hp&&incoming<a.hp*.65)v=.58+Math.min(.35,best/d.hp);
     if(m.clairvoyance){const streak=Math.max(a.clairvoyanceTurn??0,a.protectTurn??0)===s.turn-1?a.protectStreak??0:0;v=((a.evasionStage<6?.65:.12)+(incoming/a.hp)*.25)*Math.pow(1/3,streak);}
     if(m.agility&&a.stages[5]<5&&incoming<a.hp*.55)v=.35+(a.stages[5]<2?.2:0);
-    if(m.ignite&&!(s.psychicTerrain&&ground(d,s)))v=(!d.status&&!d.types.includes('fire')&&!d.subHp?.65:0)+(a.stages[1]<6?.3:0);
     if(m.substitute&&!a.subHp&&a.hp>a.maxHp/4&&incoming<a.hp*.6)v=.6;
     if(m.baton&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.12+.16*(Math.max(0,a.stages[1])+Math.max(0,a.stages[3]))+.14*Math.max(0,a.stages[5])+(a.subHp?.2:0);
     if(m.protect&&a.ability==='かそく'&&a.stages[5]<6&&a.protectTurn!==s.turn-1)v=.55;
@@ -97,6 +96,7 @@ function quickAction(s,side){
     if(m.confuse&&!d.confusion&&!(m.soundMove&&a.silenced>0)&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.55*Math.min(1,m.accuracy/100*(s.gravity?5/3:1));
     if(m.taunt&&!d.taunted&&d.moves.some(t=>t.dance||t.swordsDance||t.calmMind||t.gravity))v=.35;
    }else{const dmg=attackValue(s,a,d,m);v=dmg/Math.max(1,d.hp);if(dmg>=d.hp&&priority(m)>0)v+=.7;
+    if(m.ignite&&dmg>0)v+=(!d.status&&!d.types.includes('fire')&&!d.subHp?.65:0)+(a.stages[1]<6?.3:0);
     if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const status=(canSwapStatus(a,d)?.35:0)+['confusion','drowsy','taunted','silenced'].reduce((sum,key)=>sum+.12*Math.max(0,(a[key]??0)-(d[key]??0)),0);if(gain+status>0)v+=.15+gain+status;}
    }
   }

@@ -89,6 +89,8 @@ function quickAction(s,side){
     if(m.baton&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0))v=.12+.16*(Math.max(0,a.stages[1])+Math.max(0,a.stages[3]))+.14*Math.max(0,a.stages[5])+(a.subHp?.2:0);
     if(m.protect&&a.ability==='かそく'&&a.stages[5]<6&&a.protectTurn!==s.turn-1)v=.55;
     if(m.protect&&d.status==='toxic'&&a.protectTurn!==s.turn-1&&incoming>0)v=.45+Math.min(.5,(d.toxicCounter??0)*.09);
+    if(m.amnesia&&a.stages[4]<5&&d.moves.some(m=>m.category==='special')&&incoming<a.hp*.65)v=.5;
+    if(m.rest&&a.hp<a.maxHp*.55)v=.55+(a.item==='chesto'?.5:0)+(a.status?.15:0);
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
     if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;
     if(m.yawn&&!d.status&&!d.drowsy)v=.45;

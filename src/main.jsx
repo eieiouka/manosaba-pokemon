@@ -94,7 +94,7 @@ function thinkCpu(state){
    worker=new Worker(new URL('./cpu.worker.js',import.meta.url),{type:'module'});
    worker.onmessage=e=>finish(e.data);
    worker.onerror=()=>finish(undefined);
-   timer=setTimeout(()=>finish(undefined),3800);
+   timer=setTimeout(()=>finish(undefined),700);
    worker.postMessage(state);
   }catch{finish(undefined)}
  });

@@ -72,7 +72,7 @@ export function startSequence(ids,enemy=roster.map(c=>c.id).sort(()=>Math.random
  return steps;
 }
 export function start(ids){return startSequence(ids).at(-1).state}
-export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:m.multiHit==='silver'?6:1;
+export const hitLimit=(s,m)=>m.multiHit==='fainted'?s.teams.flat().filter(c=>c.hp<=0).length:m.multiHit==='silver'?6:m.multiHit==='double'?2:1;
 export const isTrapped=(s,side)=>{const c=s.teams[side][s.active[side]],other=s.teams[1-side][s.active[1-side]];return c.hp>0&&other.hp>0&&(other.ability==='しせんゆうどう'||!!c.trappedBy&&!c.types.includes('ghost')&&c.trappedBy===other.id)};
 // Estimate damage against the possible level-50 HP and relevant defense spreads.
 export const canSwapStatus=(a,d)=>!!a.status&&(!d.status||a.status==='toxic'&&d.status==='poison');
@@ -319,7 +319,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(e===0){emit(`${side===0?'相手の':''}${d.name}には効果がないようだ…`);continue}
     let hits=0,totalDamage=0,bodyHits=0;
     for(let i=0;i<limit&&d.hp>0&&a.hp>0;i++){
-      if((m.multiHit!=='silver'||i===0)&&rng()*100>=accuracyChance(m,a,d,n)){if(!hits)emit('しかし外れてしまった！');break}
+      if((!['silver','double'].includes(m.multiHit)||i===0)&&rng()*100>=accuracyChance(m,a,d,n)){if(!hits)emit('しかし外れてしまった！');break}
       if(i===0&&m.contact&&d.ability==='げんし'&&rng()<.2){d.revealedAbility=true;emit(`${name(d,1-side)}のげんし！`,950,'activate',{side:1-side,name:d.name,ability:d.ability});emit(`${name(d,1-side)}は攻撃をかわした！`);break}
       const critical=!m.ohko&&rng()<criticalChance(m,a);
       const roll=85+Math.min(15,Math.floor(rng()*16));

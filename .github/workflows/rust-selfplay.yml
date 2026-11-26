@@ -3,6 +3,8 @@ on:
   push:
     branches: [develop]
     paths: ['rust/**', 'src/data.js', 'src/battle.js', 'src/ai.js', 'src/learned-value.js', 'scripts/*rust*.mjs', '.github/workflows/rust-selfplay.yml']
+  pull_request:
+    branches: [develop]
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,4 +20,4 @@ jobs:
       - run: node scripts/export-rust-data.mjs && git diff --exit-code rust/data.json
       - run: cargo build --release --manifest-path rust/Cargo.toml
       - run: node scripts/check-rust-parity.mjs 200
-      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 1000 --workers 2 --out /tmp/value-rust.json --eval 20
+      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 10000 --workers 2 --out /tmp/value-rust.json --eval 20

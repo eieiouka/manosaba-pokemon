@@ -218,33 +218,6 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages)){
       emit(`${name(d,1-side)}は攻撃から身を守った！`,850);continue;
     }
-    if(m.swapStages){
-      const labels=['HP','攻撃','防御','特攻','特防','素早さ'];
-      const changes=[];const swap=(key,label,index=null)=>{
-        const av=index===null?(a[key]??0):a[key][index],dv=index===null?(d[key]??0):d[key][index];
-        if(av>=dv)return;
-        if(index===null){a[key]=dv;d[key]=av}else{a[key][index]=dv;d[key][index]=av}
-        changes.push({side,stat:label,delta:dv-av},{side:1-side,stat:label,delta:av-dv});
-      };
-      for(let i=1;i<=5;i++)swap('stages',labels[i],i);
-      swap('accuracyStage','命中率');swap('evasionStage','回避率');swap('critRank','急所');
-      let swapped=false;
-      if(d.hp*a.maxHp>a.hp*d.maxHp){
-        const ah=a.hp,dh=d.hp;a.hp=Math.min(a.maxHp,Math.max(1,Math.floor(dh*a.maxHp/d.maxHp)));d.hp=Math.min(d.maxHp,Math.max(1,Math.floor(ah*d.maxHp/a.maxHp)));
-        swapped=true;emit(`${name(a,side)}と${name(d,1-side)}のHP割合が入れ替わった！`,950,'heal');berry(a,side);berry(d,1-side);
-      }
-      if(canSwapStatus(a,d)){
-        for(const key of ['status','sleepTurns','toxicCounter']){[a[key],d[key]]=[d[key],a[key]]}
-        swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);
-      }
-      for(const [key,label] of [['confusion','混乱'],['drowsy','ねむけ']]){
-        if((a[key]??0)>(d[key]??0)){[a[key],d[key]]=[d[key]??0,a[key]??0];swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の${label}が入れ替わった！`,850)}
-      }
-      if(!changes.length&&!swapped){emit('しかし上手く決まらなかった！');continue}
-      if(changes.length)emit(`${name(a,side)}と${name(d,1-side)}の能力変化が入れ替わった！`,950);
-      for(const change of changes)emit(null,450,change.delta>0?'up':'down',null,null,{...change,delta:Math.sign(change.delta)*Math.min(6,Math.abs(change.delta))});
-      continue;
-    }
     if(m.calmMind){
       if(a.stages[3]>=6&&a.stages[4]>=6){emit('しかし上手く決まらなかった！');continue}
       for(const [index,stat] of [[3,'特攻'],[4,'特防']])if(a.stages[index]<6){a.stages[index]++;emit(`${name(a,side)}の${stat}が上がった！`,850,'up',null,null,{side,stat,delta:1})}
@@ -324,6 +297,32 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
+    if(m.swapStages&&a.hp>0&&d.hp>0){
+      const labels=['HP','攻撃','防御','特攻','特防','素早さ'];
+      const changes=[];const swap=(key,label,index=null)=>{
+        const av=index===null?(a[key]??0):a[key][index],dv=index===null?(d[key]??0):d[key][index];
+        if(av>=dv)return;
+        if(index===null){a[key]=dv;d[key]=av}else{a[key][index]=dv;d[key][index]=av}
+        changes.push({side,stat:label,delta:dv-av},{side:1-side,stat:label,delta:av-dv});
+      };
+      for(let i=1;i<=5;i++)swap('stages',labels[i],i);
+      swap('accuracyStage','命中率');swap('evasionStage','回避率');swap('critRank','急所');
+      let swapped=false;
+      if(d.hp*a.maxHp>a.hp*d.maxHp){
+        const ah=a.hp,dh=d.hp;a.hp=Math.min(a.maxHp,Math.max(1,Math.floor(dh*a.maxHp/d.maxHp)));d.hp=Math.min(d.maxHp,Math.max(1,Math.floor(ah*d.maxHp/a.maxHp)));
+        swapped=true;emit(`${name(a,side)}と${name(d,1-side)}のHP割合が入れ替わった！`,950,'heal');berry(a,side);berry(d,1-side);
+      }
+      if(canSwapStatus(a,d)){
+        for(const key of ['status','sleepTurns','toxicCounter']){[a[key],d[key]]=[d[key],a[key]]}
+        swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の状態異常が入れ替わった！`,950);
+      }
+      for(const [key,label] of [['confusion','混乱'],['drowsy','ねむけ']]){
+        if((a[key]??0)>(d[key]??0)){[a[key],d[key]]=[d[key]??0,a[key]??0];swapped=true;emit(`${name(a,side)}と${name(d,1-side)}の${label}が入れ替わった！`,850)}
+      }
+      if(changes.length)emit(`${name(a,side)}と${name(d,1-side)}の能力変化が入れ替わった！`,950);
+      for(const change of changes)emit(null,450,change.delta>0?'up':'down',null,null,{...change,delta:Math.sign(change.delta)*Math.min(6,Math.abs(change.delta))});
+    }
+
     if(d.hp>0&&m.trap&&!d.types.includes('ghost')&&d.trappedBy!==a.id){d.trappedBy=a.id;emit(`${name(d,1-side)}は逃げられなくなった！`)}
     if(d.hp>0&&m.burnChance&&!d.status&&!d.types.includes('fire')&&rng()*100<m.burnChance){emit(null,650);d.status='burn';emit(`${name(d,1-side)}はやけどを負った！`,850,'burn')}
     if(m.raiseCrit&&a.critRank<3){emit(null,650);const delta=Math.min(m.raiseCrit,3-a.critRank);a.critRank+=delta;emit(`${name(a,side)}の急所ランクが上がった！`,850,'up',null,null,{side,stat:'急所',delta})}

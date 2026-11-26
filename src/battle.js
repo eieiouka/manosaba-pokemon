@@ -249,7 +249,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       else{n.pendingSwitch={reason:'baton',actions,order,next:pos+1,flinched:[...flinched]};emit('交代する魔法少女を選択！',0);return steps}
       continue;
     }
-    if(d.subHp&&(m.toxic||m.yawn||m.sleep||m.confuse||m.taunt)){emit('身代わりに防がれた！');continue}
+    if(d.subHp&&(m.toxic||m.yawn||m.sleep||m.confuse)){emit('身代わりに防がれた！');continue}
     if(m.calmMind){
       if(a.stages[3]>=6&&a.stages[4]>=6){emit('しかし上手く決まらなかった！');continue}
       for(const [index,stat] of [[3,'特攻'],[4,'特防']])if(a.stages[index]<6){a.stages[index]++;emit(`${name(a,side)}の${stat}が上がった！`,850,'up',null,null,{side,stat,delta:1})}

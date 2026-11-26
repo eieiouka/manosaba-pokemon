@@ -92,6 +92,7 @@ function quickAction(s,side){
     if(m.recover&&a.hp<a.maxHp*.65)v=.4+Math.min(.5,1-a.hp/a.maxHp)-Math.min(.4,incoming/a.hp*.2);
     if(m.toxic&&!d.status&&!d.types.includes('poison')&&!d.types.includes('steel'))v=.55;
     if(m.yawn&&!d.status&&!d.drowsy)v=.45;
+    if(m.encore&&d.lastMove!=null&&d.lastMove>=0&&!d.encoreTurns&&d.moves[d.lastMove]?.category==='status'&&d.pp[d.lastMove]>0)v=.9;
     if(m.sleep&&!d.status&&!(m.soundMove&&a.silenced>0))v=.75;
     if(m.trickRoom&&!s.trickRoom&&rankedStat(a,5)<rankedStat(d,5))v=.45;
     if(m.parting&&s.teams[side].some((c,i)=>i!==s.active[side]&&c.hp>0)&&!(m.soundMove&&a.silenced>0)&&(d.stages[1]>-6||d.stages[3]>-6))v=.5;

@@ -1,15 +1,13 @@
-name: Rust self-play verification
+name: Rust team evaluation
 on:
-  push:
-    branches: [develop]
-    paths: ['rust/**', 'src/data.js', 'src/battle.js', 'src/ai.js', 'src/learned-value.js', 'scripts/*rust*.mjs', '.github/workflows/rust-selfplay.yml']
   pull_request:
     branches: [develop]
+    paths: ['rust/examples/team_eval.rs']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  parity:
+  team-eval:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -18,15 +16,11 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/export-rust-data.mjs && git diff --exit-code rust/data.json
-      - run: cargo build --release --manifest-path rust/Cargo.toml
+      - run: cargo build --release --manifest-path rust/Cargo.toml --example team_eval
       - run: node scripts/check-rust-parity.mjs 200
-      - run: cp analysis/value-rust-10m.json /tmp/value-rust.json
-      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 20000000 --workers 2 --out /tmp/value-rust.json --eval 2000
-      - run: cp /tmp/value-rust.json /tmp/value-rust-20m.json
-      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 30000000 --workers 2 --out /tmp/value-rust.json --eval 2000
-      - run: cp /tmp/value-rust.json /tmp/value-rust-30m.json
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example team_eval -- /tmp/rust-team-eval 2 analysis/value-rust-1m.json analysis/value-rust-2m.json analysis/value-rust-5m.json analysis/value-rust-10m.json analysis/value-rust-20m.json analysis/value-rust-30m.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rust-value-30m
-          path: /tmp/value-rust*.json
+          name: rust-team-evaluation
+          path: /tmp/rust-team-eval/

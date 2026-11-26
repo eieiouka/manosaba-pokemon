@@ -74,7 +74,7 @@ export function damageRange(s,a,d,m){
  const e=terrainBlocked(s,m,visible)?0:matchup(m,visible,s,a);
  const hits=hitLimit(s,m);
  if(m.ignite&&terrainBlocked(s,m,visible))return {label:'無効',min:0,max:0};
- if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.ignite&&a.stages[1]>=6&&(!!d.status||d.types.includes('fire')||d.subHp>0)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.agility&&a.stages[5]>=6||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
+ if(m.category==='status')return (m.soundMove&&a.silenced>0||a.taunted>0||m.sleep&&!!d.status||m.toxic&&(!!d.status||d.types.includes('poison')||d.types.includes('steel'))||m.yawn&&(!!d.status||d.drowsy>0)||m.recover&&a.hp>=a.maxHp||m.swapStages&&!canBeneficialSwap(a,d)||m.substitute&&(a.subHp||a.hp<=Math.floor(a.maxHp/4))||m.baton&&!s.teams.some(t=>t.includes(a)&&t.some(c=>c!==a&&c.hp>0))||m.agility&&a.stages[5]>=6||m.calmMind&&a.stages[3]>=6&&a.stages[4]>=6||m.gravity&&s.gravity>0||m.swordsDance&&a.stages[1]>=6||m.dance&&a.stages[1]>=6&&a.critRank>=3)?{label:'失敗',min:0,max:0}:{label:'変化',min:null,max:null};
  const label=e===0?'無効':e>=4?'かなり抜群':e>1?'抜群':e<=.25?'かなり半減':e<1?'半減':'';
  if(!hits||(m.soundMove&&a.silenced>0))return {label:'失敗',min:0,max:0};
  if(!e)return {label:'無効',min:0,max:0};
@@ -203,7 +203,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     if(flinched.has(side)){emit(`${name(a,side)}はひるんで動けなかった！`);continue}
     if(a.status==='sleep'){if(a.sleepTurns>0){a.sleepTurns--;emit(`${name(a,side)}はぐうぐう眠っている！`,850,'sleep');continue}a.status=null;emit(`${name(a,side)}は目を覚ました！`)}
     if(a.confusion>0){a.confusion--;if(a.confusion===0)emit(`${name(a,side)}の混乱が解けた！`);else{emit(`${name(a,side)}は混乱している！`);if(rng()<1/3){const selfDamage=damage({...a,item:null},a,{type:'normal',category:'physical',power:40,struggle:true},100);a.hp=Math.max(0,a.hp-selfDamage);emit(`${name(a,side)}はわけもわからず自分を攻撃した！`,850,'hit');faint(a,side);continue}}}
-    const m=act.index===-1?struggle:a.moves[act.index];if(m?.category==='status'&&a.taunted>0){emit(`${name(a,side)}はちょうはつされて変化技が出せない！`);continue}if(!m||!canUseMove(a,act.index))continue;
+    const m=act.index===-1?struggle:a.moves[act.index];if(m?.category==='status'&&a.taunted>0){emit(`${name(a,side)}はちょうはつされて${m.name}が出せない！`);continue}if(!m||!canUseMove(a,act.index))continue;
     if(act.index!==-1){a.pp[act.index]--;if(items[a.item]?.choice)a.lockedMove=act.index;}
     if(act.index!==-1&&!a.revealedMoves.includes(act.index))a.revealedMoves.push(act.index);
     emit(`${side===1?'相手の':''}${a.name}の${m.name}！`,850);
@@ -217,7 +217,7 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
       if(a.evasionStage<6){a.evasionStage++;emit(`${name(a,side)}の回避率が上がった！`,850,'up',null,null,{side,stat:'回避率',delta:1})}
       continue;
     }
-    if(d.clairvoyanceTurn===n.turn&&m.category!=='status'){emit(`${name(d,1-side)}は攻撃をかわした！`,850);continue}
+    if(d.clairvoyanceTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite)){emit(`${name(d,1-side)}は相手の技をかわした！`,850);continue}
     if(m.agility){
       const delta=Math.min(2,6-a.stages[5]);if(!delta){emit('しかし上手く決まらなかった！');continue}
       a.stages[5]+=delta;emit(`${name(a,side)}の素早さが${delta===2?'ぐーんと':''}上がった！`,850,'up',null,null,{side,stat:'素早さ',delta});continue;
@@ -231,13 +231,6 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     }
     if(d.protectTurn===n.turn&&(m.category!=='status'||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swapStages||m.ignite)){
       emit(`${name(d,1-side)}は攻撃から身を守った！`,850);continue;
-    }
-    if(m.ignite){
-      if(accuracyChance(m,a,d,n)<=rng()*100){emit('しかし外れてしまった！');continue}
-      let changed=false;
-      if(!d.status&&!d.types.includes('fire')&&!d.subHp){d.status='burn';d.drowsy=0;emit(`${name(d,1-side)}はやけどを負った！`,850,'burn');changed=true}
-      if(a.stages[1]<6){a.stages[1]++;emit(`${name(a,side)}の攻撃が上がった！`,850,'up',null,null,{side,stat:'攻撃',delta:1});changed=true}
-      if(!changed)emit('しかし上手く決まらなかった！');continue;
     }
     if(m.substitute){
       const cost=Math.max(1,Math.floor(a.maxHp/4));
@@ -333,6 +326,10 @@ export function resolveSequence(s,action,rng=Math.random,options={}){
     else if(e<=.25)emit('効果はかなりいまひとつだ！');
     else if(e<1)emit('効果はいまひとつだ！');
     if(m.multiHit)emit(`${hits}回当たった！`);
+    if(m.ignite&&a.hp>0){
+      if(bodyHits&&d.hp>0&&!d.status&&!d.types.includes('fire')){emit(null,650);d.status='burn';d.drowsy=0;emit(`${name(d,1-side)}はやけどを負った！`,850,'burn')}
+      if(a.stages[1]<6){emit(null,650);a.stages[1]++;emit(`${name(a,side)}の攻撃が上がった！`,850,'up',null,null,{side,stat:'攻撃',delta:1})}
+    }
     if(bodyHits&&m.swapStages&&a.hp>0&&d.hp>0){
       const labels=['HP','攻撃','防御','特攻','特防','素早さ'];
       const changes=[];const swap=(key,label,index=null)=>{

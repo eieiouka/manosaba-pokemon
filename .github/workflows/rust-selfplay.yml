@@ -20,4 +20,9 @@ jobs:
       - run: node scripts/export-rust-data.mjs && git diff --exit-code rust/data.json
       - run: cargo build --release --manifest-path rust/Cargo.toml
       - run: node scripts/check-rust-parity.mjs 200
-      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 10000 --workers 2 --out /tmp/value-rust.json --eval 20
+      - run: cargo run --release --manifest-path rust/Cargo.toml -- --games 1000000 --workers 2 --out /tmp/value-rust.json --eval 2000
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-value-1m
+          path: /tmp/value-rust.json

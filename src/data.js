@@ -11,6 +11,7 @@ export const items={
  band:{name:'こだわりハチマキ',description:'攻撃が1.5倍になるが、最初に選んだ技しか使えなくなる。交代すると技の固定が解除される。',stat:1,choice:true},
  sash:{name:'きあいのタスキ',description:'HPが満タンのとき、倒れるダメージを受けてもHPが1残る。一度使うとなくなる。'},
  orb:{name:'いのちのたま',description:'攻撃技のダメージが1.3倍になる。攻撃が命中すると、技の終了後に最大HPの1/10を失う。'},
+ blackSludge:{name:'くろいヘドロ',description:'毎ターン終了時、どくタイプなら最大HPの1/16を回復し、それ以外は最大HPの1/8のダメージを受ける。'},
  leftovers:{name:'たべのこし',description:'毎ターン終了時に最大HPの1/16を回復する。'},
  dice:{name:'いかさまダイス',description:'シルバーバレットの連続攻撃回数を6回に固定する。'},
  psychicSeed:{name:'サイコシード',description:'サイコフィールド中に特防が1段階上がる。一度使うとなくなる。'},
@@ -40,7 +41,7 @@ const trialCharacter=(id,name,short,color)=>({
  ]
 });
 export const nextRoster=[
- {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison'],item:'leftovers',ability:'せんのう',abilityDescription:'場に出るたび、相手の攻撃と特攻を1段階ずつ下げる。',base:[77,52,83,70,72,58],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('どくどく','poison','status',0,90,{toxic:true,description:'相手をもうどくにする。どくタイプが使うと必中。'}),move('まもる','normal','status',0,100,{protect:true,priority:4,description:'先制して相手の技から身を守る。連続で成功すると次の成功率が1/3ずつ下がる。'}),move('つきのひかり','fairy','status',0,100,{recover:true,description:'自分の最大HPの1/2を回復する。'}),move('あやつりにんぎょう','ghost','physical',100,100,{contact:false,puppet:true,description:'相手の攻撃と特攻の実数値のうち高い方を使って攻撃する。相手の攻撃・特攻ランクの変化は無視する。'})]},
+ {...trialCharacter('anan','夏目アンアン','アンアン','#a6a4df'),types:['poison'],item:'blackSludge',ability:'せんのう',abilityDescription:'場に出るたび、相手の攻撃と特攻を1段階ずつ下げる。',base:[77,52,83,70,72,58],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('どくどく','poison','status',0,90,{toxic:true,description:'相手をもうどくにする。どくタイプが使うと必中。'}),move('まもる','normal','status',0,100,{protect:true,priority:4,description:'先制して相手の技から身を守る。連続で成功すると次の成功率が1/3ずつ下がる。'}),move('つきのひかり','fairy','status',0,100,{recover:true,description:'自分の最大HPの1/2を回復する。'}),move('あやつりにんぎょう','ghost','physical',100,100,{contact:false,puppet:true,description:'相手の攻撃と特攻の実数値のうち高い方を使って攻撃する。相手の攻撃・特攻ランクの変化は無視する。'})]},
  {...trialCharacter('miria','佐伯ミリア','ミリア','#a1c8d7'),types:['normal'],item:'psychicSeed',ability:'むこせい',abilityDescription:'自分が与える・受ける攻撃技のタイプ相性をすべて等倍にする。タイプ無効も無視する。',base:[82,74,84,81,77,76],points:[32,0,32,0,2,0],nature:[100,90,110,100,100,100],moves:[move('いれかわり','normal','physical',20,100,{contact:true,swapStages:true,description:'攻撃が命中した後、相手と能力ランク・状態異常・状態変化のうち、自分に有利なものだけを入れ替える。ちょうはつ・音技封じ・混乱・ねむけも対象。双方が状態異常の場合、もうどくをどくと交換する場合のみ対象。'}),move('めいそう','psychic','status',0,100,{calmMind:true,description:'自分の特攻と特防を1段階ずつ上げる。'}),move('アシストパワー','psychic','special',20,100,{storedPower:true,description:'自分の能力ランクの上昇1段階につき威力が20上がる。急所ランクは含まない。'}),move('あさのひかり','normal','status',0,100,{recover:true,description:'自分の最大HPの1/2を回復する。'})]},
  trialCharacter('noa','城ヶ崎ノア','ノア','#e3b6c8'),
  trialCharacter('reia','蓮見レイア','レイア','#e0b683'),

@@ -70,10 +70,10 @@ function terrainValue(s,side){
  }
  return duration*benefit;
 }
-function quickAction(s,side){
+function rankActions(s,side){
  const a=active(s,side),d=active(s,1-side),actions=legalActions(s,side);
  const best=bestHit(s,a,d),incoming=bestHit(s,d,a);
- let out=actions[0],max=-Infinity;
+ const ranked=[];
  for(const x of actions){
   let v;
   if(x.kind==='switch'){v=reserveValue(s,side,x.index)-reserveValue(s,side,s.active[side])-.35;if(a.drowsy===1)v+=.65;if(best>=d.hp)v-=.8}
@@ -106,10 +106,11 @@ function quickAction(s,side){
     if(m.swapStages){const weights=[0,.15,.1,.15,.1,.1];const gain=d.stages.reduce((sum,x,i)=>sum+Math.max(0,x-a.stages[i])*weights[i],0)+.08*['accuracyStage','evasionStage','critRank'].reduce((sum,key)=>sum+Math.max(0,(d[key]??0)-(a[key]??0)),0);const status=(canSwapStatus(a,d)?.35:0)+['confusion','drowsy','taunted','silenced'].reduce((sum,key)=>sum+.12*Math.max(0,(a[key]??0)-(d[key]??0)),0);if(gain+status>0)v+=.15+gain+status;}
    }
   }
-  if(v>max){max=v;out=x}
+  ranked.push({action:x,score:v});
  }
- return out;
+ return ranked.sort((a,b)=>b.score-a.score);
 }
+function quickAction(s,side){return rankActions(s,side)[0]?.action}
 function rollout(s,rng,turns){
  for(let i=0;i<turns&&s.winner===null;i++){
   const a=quickAction(s,0),b=quickAction(s,1);if(!a||!b)break;
@@ -130,17 +131,44 @@ function equilibrium(payoff,iterations=48){
  const value=payoff.reduce((sum,line,i)=>sum+row[i]*line.reduce((v,x,j)=>v+x*col[j],0),0);
  return {row,col,value};
 }
-export function search(s,{depth=1,samples=2,rolloutTurns=1,iterations=48,rng=Math.random,deadline=Infinity}={}){
- const actions=[legalActions(s,0),legalActions(s,1)];
+// Offline search context. The chance samples are deterministic per position,
+// allowing transpositions to share results without sharing actual battle RNG.
+export function createSearchContext({seed=1,beam=3,cacheEntries=50000}={}){
+ return {seed:seed>>>0,beam,cacheEntries,cache:new Map(),nodes:0,hits:0};
+}
+const dynamicKeys=['id','hp','maxHp','item','ability','stats','stages','pp','lockedMove','lastMove','encoreTurns','encoreMove','critRank','accuracyStage','evasionStage','status','sleepTurns','toxicCounter','drowsy','protectStreak','protectTurn','clairvoyanceTurn','subHp','confusion','taunted','trappedBy','silenced','revivalUsed','fainted'];
+function positionKey(s){
+ return JSON.stringify([s.turn,s.active,s.winner,s.psychicTerrain,s.gravity,s.trickRoom,s.pendingSwitch??null,s.teams.map(t=>t.map(c=>dynamicKeys.map(k=>c[k])))]);
+}
+function positionSeed(key,seed){
+ let h=(2166136261^seed)>>>0;for(let i=0;i<key.length;i++)h=Math.imul(h^key.charCodeAt(i),16777619);return h>>>0;
+}
+export function search(s,{depth=1,samples=2,rolloutTurns=1,iterations=48,rng=Math.random,deadline=Infinity,context=null,root=true}={}){
+ if(Date.now()>deadline)throw new Error('search deadline');
+ const useBeam=context&&!root&&context.beam>0;
+ const actions=useBeam?[0,1].map(side=>rankActions(s,side).slice(0,context.beam).map(x=>x.action)):[legalActions(s,0),legalActions(s,1)];
  if(s.winner!==null||!actions[0].length||!actions[1].length)return {actions,value:evaluate(s),row:[],col:[]};
- const seeds=Array.from({length:samples},()=>Math.floor(rng()*4294967296));
+ let key,localRng=rng;
+ if(context){
+  context.nodes++;
+  const position=positionKey(s);
+  key=JSON.stringify([depth,samples,rolloutTurns,iterations,root?0:context.beam,position]);
+  if(context.cacheEntries>0&&context.cache.has(key)){context.hits++;return context.cache.get(key)}
+  localRng=seededRandom(positionSeed(key,context.seed));
+ }
+ const seeds=Array.from({length:samples},()=>Math.floor(localRng()*4294967296));
  const payoff=actions[0].map(a=>actions[1].map(b=>seeds.reduce((sum,seed)=>{
   if(Date.now()>deadline)throw new Error('search deadline');
   const random=seededRandom(seed);const next=transition(s,a,b,random);
-  const v=next.winner!==null?evaluate(next):depth>1?search(next,{depth:depth-1,samples,rolloutTurns,iterations,rng:random,deadline}).value:rollout(next,random,rolloutTurns);
+  const v=next.winner!==null?evaluate(next):depth>1?search(next,{depth:depth-1,samples,rolloutTurns,iterations,rng:random,deadline,context,root:false}).value:rollout(next,random,rolloutTurns);
   return sum+v;
  },0)/samples));
- return {actions,payoff,...equilibrium(payoff,iterations)};
+ const result={actions,payoff,...equilibrium(payoff,iterations)};
+ if(context&&context.cacheEntries>0){
+  if(context.cache.size>=context.cacheEntries)context.cache.delete(context.cache.keys().next().value);
+  context.cache.set(key,result);
+ }
+ return result;
 }
 function draw(p,rng){let x=rng();for(let i=0;i<p.length;i++){x-=p[i];if(x<=0)return i}return p.length-1}
 export function simulate(a,b,{seed=1,depth=1,samples=2,rolloutTurns=1,iterations=48,maxTurns=80}={}){

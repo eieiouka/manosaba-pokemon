@@ -174,10 +174,10 @@ export function rankSelections({candidates=allSelections(),opponents=allSelectio
 
 // CPU selection is committed independently of the player's hidden selection.
 // Diverse high-performing lineups from tactical self-play, weighted by results.
-export function chooseCpuTeam(rng=Math.random){
+export function chooseCpuTeam(rng=Math.random,available=roster.map(c=>c.id)){
  const teams=[['sherry','nanoka','ema'],['sherry','hanna','ema'],['sherry','hiro','nanoka'],['sherry','nanoka','hanna'],['hanna','sherry','nanoka']];
- if(teams.every(team=>team.every(id=>roster.some(c=>c.id===id))))return teams[draw([.48,.16,.16,.12,.08],rng)].slice();
- const ids=roster.map(c=>c.id);
+ if(available.length===6&&teams.every(team=>team.every(id=>available.includes(id))))return teams[draw([.48,.16,.16,.12,.08],rng)].slice();
+ const ids=[...available];
  for(let i=ids.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
  return ids.slice(0,3);
 }
@@ -186,7 +186,7 @@ export function chooseCpuTeam(rng=Math.random){
 export function cpuView(s){
  const visible=s.teams[0].filter((c,i)=>c.seen||i===s.active[0]);
  const known=visible.map(c=>c.id);
- const pool=roster.map(c=>c.id).filter(id=>!known.includes(id));
+ const pool=(s.preview?.[0]??roster.map(c=>c.id)).filter(id=>!known.includes(id));
  const need=3-visible.length, hypotheses=[];
  function add(ids,start){if(ids.length===need){
   const team=[...visible,...makeTeam(ids)];

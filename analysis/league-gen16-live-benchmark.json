@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-27",
+  "description": "Independent seeded live-policy benchmark with randomized six-member rosters, random three-member selections, reciprocal side assignments, cpuView for learned players, 80-turn cap, draws scored as half. Weak CPU chooses a random legal action on 25% of turns; otherwise quick policy. Timing is measured in the Node execution environment, not browser end-to-end.",
+  "champion": "gen-015",
+  "leagueGeneration": 16,
+  "sourceBlobs": {
+    "data.js": "30a75969731b319c618393f23696e68c7c2c9a99",
+    "battle.js": "5aaed3125664b174f23bc202e1b220210f193240",
+    "ai.js": "67f72233f163fc35f11d8f79bc6f53ba2b11f510",
+    "learned-value.js": "68accc43469a9d83c86a56a58113b789df298385",
+    "cpu-model.json": "58b03dc777f57a55a6498b333f5022e8f7e3d6a1",
+    "fast-learned-cpu.js": "a46b0caaeabd18a3cf1bca97e6b7484b960cbfaa",
+    "adaptive-cpu.js": "41f368e44c4dd9c2ad55247736e84820f1c93bbe",
+    "league-cpu.js": "c862ff632f3551c867c9317cc2265bc605c649f7",
+    "league-champion.json": "81d27a936c843c5e7244f94e9f5decc9e90476a7"
+  },
+  "results": [
+    {
+      "name": "champion",
+      "opponent": "legacy",
+      "games": 1000,
+      "wins": 575,
+      "draws": 28,
+      "losses": 397,
+      "rate": 0.589,
+      "turns": 21383,
+      "medianMs": 4.522809000001871,
+      "p95Ms": 8.170426000011503,
+      "maxMs": 114.64587500000198
+    },
+    {
+      "name": "champion",
+      "opponent": "quick",
+      "games": 1000,
+      "wins": 753,
+      "draws": 2,
+      "losses": 245,
+      "rate": 0.754,
+      "turns": 16191,
+      "medianMs": 4.862156999995932,
+      "p95Ms": 9.48228699999163,
+      "maxMs": 586.7708879999991
+    },
+    {
+      "name": "champion",
+      "opponent": "weak",
+      "games": 1000,
+      "wins": 844,
+      "draws": 1,
+      "losses": 155,
+      "rate": 0.8445,
+      "turns": 15510,
+      "medianMs": 4.888569000002462,
+      "p95Ms": 8.72453399997903,
+      "maxMs": 197.63787200002116
+    },
+    {
+      "name": "adaptive-2m",
+      "opponent": "legacy",
+      "games": 1000,
+      "wins": 554,
+      "draws": 23,
+      "losses": 423,
+      "rate": 0.5655,
+      "turns": 20827,
+      "medianMs": 5.0945990000036545,
+      "p95Ms": 10.179972999962047,
+      "maxMs": 678.4414509999915
+    }
+  ]
+}

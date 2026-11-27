@@ -5,6 +5,7 @@ import {roster,types,colors,items,struggle} from './data.js';
 import {start,startSequence,resolveSequence,makeTeam,canUseMove,damageRange,isTrapped} from './battle.js';
 import './style.css';
 import {chooseCpuTeam,chooseReserve,rankActions,legalActions} from './ai.js';
+import {thinkCpu} from './cpu-request.js';
 // Selection simulations run outside React's UI thread.
 function selectionRequest(own,opponent,kind='recommend'){
  return new Promise(resolve=>{
@@ -101,20 +102,6 @@ function InfoModal({character,move:initialMove,item,onClose,inBattle,opponent=fa
  </>}
  </section></div>,document.body)
 }
-// Run search off the UI thread, with a hard timeout for slow devices.
-function thinkCpu(state,recommendations=false,onProgress){
- return new Promise(resolve=>{
-  let worker,timer,latest,done=false;
-  const finish=action=>{if(done)return;done=true;clearTimeout(timer);worker?.terminate();resolve(action??latest)};
-  try{
-   worker=new Worker(new URL('./cpu.worker.js',import.meta.url),{type:'module'});
-   worker.onmessage=e=>{if(recommendations&&e.data?.partial===true){latest=e.data.actions;onProgress?.(latest);return}finish(e.data)};
-   worker.onerror=()=>finish(undefined);
-   timer=setTimeout(()=>finish(undefined),700);
-   worker.postMessage(recommendations?{state,recommendations:true}:state);
-  }catch{finish(undefined)}
- });
-}
 // Tactical fallback used only while the learned selection table is unavailable.
 function quickSelection(own,opponent){
  const a=makeTeam(own),b=makeTeam(opponent);
@@ -160,7 +147,7 @@ function App(){
  const toggle=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):s.length<3?[...s,id]:s);
  const [busy,setBusy]=useState(false);
  const [selectionHint,setSelectionHint]=useState(null),[selectionDetail,setSelectionDetail]=useState(null),[actionHint,setActionHint]=useState(null);
- useEffect(()=>{let current=true;const p=parties.map(team=>team.map(c=>c.id));const quick=quickSelection(p[0],p[1]);setSelectionDetail(quick);setSelectionHint(quick.team);selectionRequest(p[0],p[1]).then(detail=>{if(current&&detail?.team.length===3){setSelectionHint(detail.team);setSelectionDetail(detail)}}).catch(()=>{});return()=>{current=false}},[parties]);
+ useEffect(()=>{let current=true;const p=parties.map(team=>team.map(c=>c.id));const quick=quickSelection(p[0],p[1]);setSelectionDetail(quick);setSelectionHint(quick.team);selectionRequest(p[0],p[1]).then(detail=>{if(!current)return;if(detail?.team.length===3){setSelectionHint(detail.team);setSelectionDetail(detail)}else setSelectionDetail({...quick,provisional:false,limited:true})}).catch(()=>{if(current)setSelectionDetail({...quick,provisional:false,limited:true})});return()=>{current=false}},[parties]);
  useEffect(()=>{let current=true;setActionHint(null);if(!battle||busy||battle.winner!==null)return;
   const own=battle.teams[0][battle.active[0]];
   if(!own.hp||battle.pendingSwitch){const list=battle.teams[0].map((c,i)=>c.hp&&i!==battle.active[0]?i:-1).filter(i=>i>=0);const index=chooseReserve(battle,0,list);if(index!=null)setActionHint({state:battle,actions:[{kind:'switch',index,detail:{method:'forced'}}]});return;}
@@ -170,7 +157,12 @@ function App(){
   const ranked=rankActions(mirror,1).find(x=>valid(x.action));const fallback=ranked?{...ranked.action,detail:{method:'quick',value:ranked.score}}:legal[0];
   if(fallback)setActionHint({state:battle,actions:[fallback]});
   const accept=actions=>{const hints=(Array.isArray(actions)?actions:[]).filter(valid);if(current&&hints.length)setActionHint({state:battle,actions:hints})};
-  thinkCpu(mirror,true,accept).then(accept);return()=>{current=false};
+  const controller=new AbortController();
+  thinkCpu(mirror,true,accept,{signal:controller.signal}).then(actions=>{
+   if(!current)return;
+   if(Array.isArray(actions)&&actions.some(valid))accept(actions);
+   else if(fallback)setActionHint({state:battle,actions:[{...fallback,detail:{...fallback.detail,method:'quickFinal'}}]});
+  });return()=>{current=false;controller.abort()};
  },[battle,busy]);
  const [abilityNotice,setAbilityNotice]=useState(null);
  const [itemNotice,setItemNotice]=useState(null);
@@ -219,11 +211,11 @@ function App(){
   return '有利な対面を作って攻撃する';
  };
  if(!plan?.direct)return ['選出の計算中です。'];
- if(plan.provisional){
+ if(plan.provisional||plan.limited){
   const good=plan.direct.filter(x=>x.margin>.05).map(x=>name(x.id)),bad=plan.direct.filter(x=>x.margin<=.05).map(x=>name(x.id));
-  return ['暫定：'+name(team[0])+'を先発に。'+(good.length?good.join('・')+'には攻防の簡易評価で優勢。':'明確な優勢対面はまだありません。')+(bad.length?' 苦手候補は'+bad.join('・')+'。':''),
-   '控えは'+team.slice(1).map(id=>name(id)+'（'+role(id)+'）').join('・')+'。交代先と相手の選出を調べています。',
-   '詳細な対面シミュレーションが終わり次第、この解説を自動更新します。'];
+  return [(plan.limited?'簡易評価：':'暫定：')+name(team[0])+'を先発に。'+(good.length?good.join('・')+'には攻防の簡易評価で優勢。':'明確な優勢対面はまだありません。')+(bad.length?' 苦手候補は'+bad.join('・')+'。':''),
+   '控えは'+team.slice(1).map(id=>name(id)+'（'+role(id)+'）').join('・')+'。'+(plan.limited?'':'交代先と相手の選出を調べています。'),
+   plan.limited?'詳細解析は取得できなかったため、見せ合いの簡易評価を表示しています。':'詳細な対面シミュレーションが終わり次第、この解説を自動更新します。'];
  }
  const lines=[],opponent=plan.opponentTeams?.[0]?.team;
  if(opponent?.length){lines.push('相手の構成を見ると、'+opponent.map(name).join('・')+'の選出が有力だと予想。先発は'+name(opponent[0])+'で'+role(opponent[0])+'、後続の'+name(opponent[1])+'は'+role(opponent[1])+'、'+name(opponent[2])+'は'+role(opponent[2])+'展開を警戒します。');if(plan.opponentTeams[1])lines.push('別の選出なら'+plan.opponentTeams[1].team.map(name).join('・')+'もあり得ます。');}
@@ -242,6 +234,7 @@ function App(){
  const lines=[];
  if(d.method==='learned'){
   if(d.provisional)lines.push('暫定の探索結果（'+d.samples+'サンプル）。追加探索で更新します。');
+  else if(d.limited)lines.push('短時間探索の結果（'+d.samples+'サンプル）。詳細探索の結果を取得できなかったため、この範囲で判断しています。');
   const h=d.hypotheses,other=d.alternative;
   const target=active[1].short,action=a.kind==='switch'?battle.teams[0][a.index].short+'に引く':name+'を選ぶ';
   const choices=d.opponentChoices??[];
@@ -269,13 +262,14 @@ function App(){
  }else if(d.method==='only')lines.push('現在選べる行動はこれだけです。PP・こだわり・挑発・交代制限などを考慮しています。');
  else if(d.method==='forced')lines.push('交代必須。残りHPと現在の対面での攻防を比較し、控えから選びました。');
  else {
-  lines.push('暫定：現在の対面と残りHPから選んだ行動です。');
+  const finished=d.method==='quickFinal'||d.limited;
+  lines.push((finished?'簡易評価：':'暫定：')+'現在の対面と残りHPから選んだ行動です。');
   if(a.kind==='move'){
    const m=a.index<0?struggle:active[0].moves[a.index],range=damageRange(battle,active[0],active[1],m);
    if(range.min!==null)lines.push('相手の'+active[1].short+'が居座れば、予測ダメージは'+range.min+'～'+range.max+'％。相手の残りHPは約'+Math.round(active[1].hp/active[1].maxHp*100)+'％です。');
    else if(m.description)lines.push(m.description);
-  }else lines.push(battle.teams[0][a.index]?.short+'への交代を候補としました。相手の攻撃を受けた場合の展開を探索中です。');
-  lines.push('相手の行動・控えを含む探索が終わり次第、自動更新します。');
+  }else lines.push(battle.teams[0][a.index]?.short+'への交代を候補としました。'+(finished?'':'相手の攻撃を受けた場合の展開を探索中です。'));
+  lines.push(finished?'詳細探索の結果を取得できなかったため、簡易評価を表示しています。':'相手の行動・控えを含む探索が終わり次第、自動更新します。');
  }
  return {title:name??'推奨行動',lines};
  })});

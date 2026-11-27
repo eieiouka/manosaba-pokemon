@@ -13,9 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cargo build --release --manifest-path rust/Cargo.toml --example league
-      - run: cargo run --release --manifest-path rust/Cargo.toml --example league -- /tmp/league 2 8 100000 analysis/value-rust-1m.json analysis/value-rust-2m.json analysis/value-rust-5m.json analysis/value-rust-10m.json analysis/value-rust-20m.json analysis/value-rust-30m.json
+      - run: mkdir -p /tmp/league && cp analysis/league-gen8.json /tmp/league/league.json
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example league -- /tmp/league 2 8 250000
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: rust-elo-league
+          name: rust-elo-league-gen16
           path: /tmp/league/

@@ -1,8 +1,8 @@
-name: HP-matchup Elo league
+name: Context-weight Elo league
 on:
   pull_request:
     branches: [develop]
-    paths: ['rust/examples/hp_matchup_league.rs','.github/workflows/selection-league.yml']
+    paths: ['rust/examples/context_weight_league.rs','rust/src/lib.rs','.github/workflows/selection-league.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,9 +12,9 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - run: cargo run --release --manifest-path rust/Cargo.toml --example hp_matchup_league -- /tmp/hp-matchup-league 2 2000
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example context_weight_league -- /tmp/context-weight-league 2 2000 30000
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hp-matchup-league
-          path: /tmp/hp-matchup-league/
+          name: context-weight-league
+          path: /tmp/context-weight-league/

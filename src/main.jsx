@@ -5,8 +5,20 @@ import {roster,types,colors,items,struggle} from './data.js';
 import {start,startSequence,resolveSequence,makeTeam,canUseMove,damageRange,isTrapped} from './battle.js';
 import './style.css';
 import {chooseCpuTeam,chooseReserve,rankActions,legalActions} from './ai.js';
-import {chooseOptimalTeam,preloadSelection,recommendTeam} from './team-selection.js';
-void preloadSelection();
+// Selection simulations run outside React's UI thread.
+function selectionRequest(own,opponent,kind='recommend'){
+ return new Promise(resolve=>{
+  let worker,timer,done=false;
+  const finish=value=>{if(done)return;done=true;clearTimeout(timer);worker?.terminate();resolve(value)};
+  try{
+   worker=new Worker(new URL('./selection.worker.js',import.meta.url),{type:'module'});
+   worker.onmessage=e=>finish(e.data);
+   worker.onerror=()=>finish(null);
+   timer=setTimeout(()=>finish(null),15000);
+   worker.postMessage({own,opponent,kind});
+  }catch{finish(null)}
+ });
+}
 import {unlockAttackAudio,playAttackSound} from './sounds.js';
 function randomSix(){
  const pool=[...roster];
@@ -90,13 +102,13 @@ function InfoModal({character,move:initialMove,item,onClose,inBattle,opponent=fa
  </section></div>,document.body)
 }
 // Run search off the UI thread, with a hard timeout for slow devices.
-function thinkCpu(state,recommendations=false){
+function thinkCpu(state,recommendations=false,onProgress){
  return new Promise(resolve=>{
-  let worker,timer;
-  const finish=action=>{clearTimeout(timer);worker?.terminate();resolve(action)};
+  let worker,timer,latest,done=false;
+  const finish=action=>{if(done)return;done=true;clearTimeout(timer);worker?.terminate();resolve(action??latest)};
   try{
    worker=new Worker(new URL('./cpu.worker.js',import.meta.url),{type:'module'});
-   worker.onmessage=e=>finish(e.data);
+   worker.onmessage=e=>{if(recommendations&&e.data?.partial===true){latest=e.data.actions;onProgress?.(latest);return}finish(e.data)};
    worker.onerror=()=>finish(undefined);
    timer=setTimeout(()=>finish(undefined),700);
    worker.postMessage(recommendations?{state,recommendations:true}:state);
@@ -106,11 +118,13 @@ function thinkCpu(state,recommendations=false){
 // Tactical fallback used only while the learned selection table is unavailable.
 function quickSelection(own,opponent){
  const a=makeTeam(own),b=makeTeam(opponent);
- return a.map(c=>({id:c.id,score:b.reduce((sum,d)=>{
+ const rows=a.map(c=>({id:c.id,direct:b.map(d=>{
   const s={teams:[[c],[d]],active:[0,0],turn:1,winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
   const best=side=>rankActions(s,side).find(x=>x.action.kind==='move')?.score??0;
-  return sum+Math.min(2,best(0))-Math.min(2,best(1));
- },0)})).sort((x,y)=>y.score-x.score).slice(0,3).map(x=>x.id);
+  return {id:d.id,margin:Math.min(2,best(0))-Math.min(2,best(1))};
+ })})).map(x=>({...x,score:x.direct.reduce((sum,d)=>sum+d.margin,0)})).sort((x,y)=>y.score-x.score);
+ const team=rows.slice(0,3).map(x=>x.id);
+ return {team,provisional:true,direct:rows[0].direct,rows};
 }
 function SelectionTimer({onExpire}){
  const [seconds,setSeconds]=useState(60);
@@ -146,7 +160,7 @@ function App(){
  const toggle=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):s.length<3?[...s,id]:s);
  const [busy,setBusy]=useState(false);
  const [selectionHint,setSelectionHint]=useState(null),[selectionDetail,setSelectionDetail]=useState(null),[actionHint,setActionHint]=useState(null);
- useEffect(()=>{let current=true;const p=parties.map(team=>team.map(c=>c.id));setSelectionDetail(null);setSelectionHint(quickSelection(p[0],p[1]));recommendTeam(p[0],p[1]).then(detail=>{if(current&&detail?.team.length===3){setSelectionHint(detail.team);setSelectionDetail(detail)}}).catch(()=>{});return()=>{current=false}},[parties]);
+ useEffect(()=>{let current=true;const p=parties.map(team=>team.map(c=>c.id));const quick=quickSelection(p[0],p[1]);setSelectionDetail(quick);setSelectionHint(quick.team);selectionRequest(p[0],p[1]).then(detail=>{if(current&&detail?.team.length===3){setSelectionHint(detail.team);setSelectionDetail(detail)}}).catch(()=>{});return()=>{current=false}},[parties]);
  useEffect(()=>{let current=true;setActionHint(null);if(!battle||busy||battle.winner!==null)return;
   const own=battle.teams[0][battle.active[0]];
   if(!own.hp||battle.pendingSwitch){const list=battle.teams[0].map((c,i)=>c.hp&&i!==battle.active[0]?i:-1).filter(i=>i>=0);const index=chooseReserve(battle,0,list);if(index!=null)setActionHint({state:battle,actions:[{kind:'switch',index,detail:{method:'forced'}}]});return;}
@@ -155,7 +169,8 @@ function App(){
   const valid=a=>legal.some(x=>x.kind===a?.kind&&x.index===a?.index);
   const ranked=rankActions(mirror,1).find(x=>valid(x.action));const fallback=ranked?{...ranked.action,detail:{method:'quick',value:ranked.score}}:legal[0];
   if(fallback)setActionHint({state:battle,actions:[fallback]});
-  thinkCpu(mirror,true).then(actions=>{const hints=(Array.isArray(actions)?actions:[]).filter(valid);if(current&&hints.length)setActionHint({state:battle,actions:hints})});return()=>{current=false};
+  const accept=actions=>{const hints=(Array.isArray(actions)?actions:[]).filter(valid);if(current&&hints.length)setActionHint({state:battle,actions:hints})};
+  thinkCpu(mirror,true,accept).then(accept);return()=>{current=false};
  },[battle,busy]);
  const [abilityNotice,setAbilityNotice]=useState(null);
  const [itemNotice,setItemNotice]=useState(null);
@@ -182,7 +197,7 @@ function App(){
   };
   play(0);
  };
- const beginBattle=async()=>{if(battle||busyRef.current)return;unlockAttackAudio();busyRef.current=true;setBusy(true);const preview=parties.map(p=>p.map(c=>c.id));const chosen=await chooseOptimalTeam(preview[1],preview[0])??chooseCpuTeam(Math.random,preview[1]);const steps=startSequence(selected,chosen,preview);const play=i=>{if(i>=steps.length){setAbilityNotice(null);setItemNotice(null);setStatNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);setItemNotice(step.itemNotice??null);setStatNotice(step.statNotice??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
+ const beginBattle=async()=>{if(battle||busyRef.current)return;unlockAttackAudio();busyRef.current=true;setBusy(true);const preview=parties.map(p=>p.map(c=>c.id));const chosen=await selectionRequest(preview[1],preview[0],'choose')??chooseCpuTeam(Math.random,preview[1]);const steps=startSequence(selected,chosen,preview);const play=i=>{if(i>=steps.length){setAbilityNotice(null);setItemNotice(null);setStatNotice(null);busyRef.current=false;setBusy(false);return}const step=steps[i];setBattle(step.state);setAbilityNotice(step.ability??null);setItemNotice(step.itemNotice??null);setStatNotice(step.statNotice??null);if(step.sound)playAttackSound(step.sound);playbackTimer.current=setTimeout(()=>play(i+1),step.delay)};play(0)};
  const reset=()=>{setParties([randomSix(),randomSix()]);setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  const trapped=!!battle&&!battle.pendingSwitch&&isTrapped(battle,0);
@@ -204,6 +219,12 @@ function App(){
   return '有利な対面を作って攻撃する';
  };
  if(!plan?.direct)return ['選出の計算中です。'];
+ if(plan.provisional){
+  const good=plan.direct.filter(x=>x.margin>.05).map(x=>name(x.id)),bad=plan.direct.filter(x=>x.margin<=.05).map(x=>name(x.id));
+  return ['暫定：'+name(team[0])+'を先発に。'+(good.length?good.join('・')+'には攻防の簡易評価で優勢。':'明確な優勢対面はまだありません。')+(bad.length?' 苦手候補は'+bad.join('・')+'。':''),
+   '控えは'+team.slice(1).map(id=>name(id)+'（'+role(id)+'）').join('・')+'。交代先と相手の選出を調べています。',
+   '詳細な対面シミュレーションが終わり次第、この解説を自動更新します。'];
+ }
  const lines=[],opponent=plan.opponentTeams?.[0]?.team;
  if(opponent?.length){lines.push('相手の構成を見ると、'+opponent.map(name).join('・')+'の選出が有力だと予想。先発は'+name(opponent[0])+'で'+role(opponent[0])+'、後続の'+name(opponent[1])+'は'+role(opponent[1])+'、'+name(opponent[2])+'は'+role(opponent[2])+'展開を警戒します。');if(plan.opponentTeams[1])lines.push('別の選出なら'+plan.opponentTeams[1].team.map(name).join('・')+'もあり得ます。');}
  else lines.push('相手の選出表が未取得のため、見せ合いの6人全体から対面と引き先を考えます。');
@@ -220,6 +241,7 @@ function App(){
  const d=a.detail??{},name=a.kind==='switch'?'交代：'+battle.teams[0][a.index]?.name:(a.index<0?struggle:active[0].moves[a.index])?.name;
  const lines=[];
  if(d.method==='learned'){
+  if(d.provisional)lines.push('暫定の探索結果（'+d.samples+'サンプル）。追加探索で更新します。');
   const h=d.hypotheses,other=d.alternative;
   const target=active[1].short,action=a.kind==='switch'?battle.teams[0][a.index].short+'に引く':name+'を選ぶ';
   const choices=d.opponentChoices??[];
@@ -246,7 +268,15 @@ function App(){
   if(d.gap>.001)lines.push('この手と最善候補は評価が近いので、どちらも有力です。');
  }else if(d.method==='only')lines.push('現在選べる行動はこれだけです。PP・こだわり・挑発・交代制限などを考慮しています。');
  else if(d.method==='forced')lines.push('交代必須。残りHPと現在の対面での攻防を比較し、控えから選びました。');
- else lines.push('探索結果が未取得のため、対面・予測ダメージ・技効果による簡易評価の推奨です。');
+ else {
+  lines.push('暫定：現在の対面と残りHPから選んだ行動です。');
+  if(a.kind==='move'){
+   const m=a.index<0?struggle:active[0].moves[a.index],range=damageRange(battle,active[0],active[1],m);
+   if(range.min!==null)lines.push('相手の'+active[1].short+'が居座れば、予測ダメージは'+range.min+'～'+range.max+'％。相手の残りHPは約'+Math.round(active[1].hp/active[1].maxHp*100)+'％です。');
+   else if(m.description)lines.push(m.description);
+  }else lines.push(battle.teams[0][a.index]?.short+'への交代を候補としました。相手の攻撃を受けた場合の展開を探索中です。');
+  lines.push('相手の行動・控えを含む探索が終わり次第、自動更新します。');
+ }
  return {title:name??'推奨行動',lines};
  })});
  return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA POKEMON</div><h1>まのさばポケモン</h1></div><div style={{display:"flex",gap:5,alignItems:"center"}}><button className="badge help-button" style={{padding:"7px 8px"}} disabled={busy||!analysis.rows.length} onClick={()=>setInfo({ai:true})}>AI解説</button><button className="badge help-button" onClick={()=>setInfo({})}>How to play</button></div></header>

@@ -1,2 +1,2 @@
 import {fastLearnedCpu} from './league-cpu.js';
-self.onmessage=({data})=>{try{const recommendations=data?.recommendations===true;self.postMessage(fastLearnedCpu(recommendations?data.state:data,{budget:recommendations?100:45,maxRounds:recommendations?12:6,recommendations})??undefined)}catch{self.postMessage(undefined)}};
+self.onmessage=({data})=>{try{const recommendations=data?.recommendations===true;self.postMessage(fastLearnedCpu(recommendations?data.state:data,{budget:recommendations?100:45,maxRounds:recommendations?12:6,recommendations,onProgress:recommendations?actions=>self.postMessage({partial:true,actions}):undefined})??undefined)}catch{self.postMessage(undefined)}};

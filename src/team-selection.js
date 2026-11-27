@@ -24,7 +24,8 @@ export function selectionMix(matrix,own,opponent,rounds=32){
   for(let j=0;j<k;j++){const v=.25*br[j]+.75*(t?bs[j]/t:br[j]);if(v<bv){bv=v;bi=j}}
   ac[ai]++;bc[bi]++;for(let i=0;i<m;i++)as[i]+=pay[i*k+bi];for(let j=0;j<k;j++)bs[j]+=pay[ai*k+j];
  }
- return a.map((idx,i)=>({team:triples[idx].map(v=>ids[v]),weight:ac[i]/rounds,uniformScore:ar[i],expectedScore:.25*ar[i]+.75*as[i]/rounds})).filter(x=>x.weight>0).sort((x,y)=>y.weight-x.weight);
+ const opponentTeams=b.map((idx,j)=>({team:triples[idx].map(v=>ids[v]),weight:bc[j]/rounds,j})).filter(x=>x.weight>0).sort((x,y)=>y.weight-x.weight).slice(0,5);
+ return a.map((idx,i)=>({team:triples[idx].map(v=>ids[v]),weight:ac[i]/rounds,uniformScore:ar[i],expectedScore:.25*ar[i]+.75*as[i]/rounds,opponentTeams:opponentTeams.map(({team,weight,j})=>({team,weight,score:pay[i*k+j]}))})).filter(x=>x.weight>0).sort((x,y)=>y.weight-x.weight);
 }
 export async function chooseOptimalTeam(own,opponent,rng=Math.random){
  if(roster.map(c=>c.id).join()!==ids.join())return null;

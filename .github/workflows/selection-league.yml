@@ -1,8 +1,8 @@
-name: Wide-search Elo league
+name: Sample-search Elo league
 on:
   pull_request:
     branches: [develop]
-    paths: ['rust/examples/wide_search_league.rs','.github/workflows/selection-league.yml']
+    paths: ['rust/examples/sample_search_league.rs','.github/workflows/selection-league.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,9 +12,9 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - run: cargo run --release --manifest-path rust/Cargo.toml --example wide_search_league -- /tmp/wide-search-league 2 4000
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example sample_search_league -- /tmp/sample-search-league 2 2000
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: wide-search-league
-          path: /tmp/wide-search-league/
+          name: sample-search-league
+          path: /tmp/sample-search-league/

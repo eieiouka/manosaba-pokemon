@@ -1,0 +1,20 @@
+name: Fixed matchup traces
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/fixed_matchup_traces.rs','rust/src/lib.rs','.github/workflows/selection-league.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  depth-league:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example fixed_matchup_traces -- /tmp/fixed-matchup-traces 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fixed-matchup-traces
+          path: /tmp/fixed-matchup-traces/

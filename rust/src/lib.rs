@@ -178,8 +178,11 @@ impl State{
     fn pick(&self,side:usize)->Option<usize>{let mut best=None;let mut v=f64::NEG_INFINITY;for i in self.reserves(side){let x=self.reserve_score(side,i);if x>v{best=Some(i);v=x}}best}
     fn pivot(&mut self,side:usize,baton:bool){if let Some(i)=self.pick(side){self.switch(side,i,baton)}}
     fn clear_traps(&mut self){let mut a=self.a(0);let mut b=self.a(1);if a.hp==0&&b.trapped==a.id as i32{b.trapped=-1}if b.hp==0&&a.trapped==b.id as i32{a.trapped=-1}self.put(0,a);self.put(1,b);}
-    pub fn step(&mut self,mut actions:[Action;2],rng:&mut Rng){
-        if self.winner.is_some(){return}
+    pub fn step(&mut self,actions:[Action;2],rng:&mut Rng){let _=self.step_traced(actions,rng);}
+    // Experimental instrumentation: scheduling order and attempted move indices.
+    pub fn step_traced(&mut self,mut actions:[Action;2],rng:&mut Rng)->([usize;2],[Option<i32>;2]){
+        if self.winner.is_some(){return ([0,1],[None,None])}
+        let mut attempted=[None,None];
         let priority=|side:usize|match actions[side]{Action::Switch(_)=>6,Action::Move(i)=>move_at(self.a(side),i).priority};
         let mut diff=priority(0)-priority(1);if diff==0{diff=(ranked(self.a(0),5,false)-ranked(self.a(1),5,false))*if self.trick>0&&actions.iter().all(|a|matches!(a,Action::Move(_))){-1}else{1}}
         let order=if diff>0||diff==0&&rng.next()<0.5{[0,1]}else{[1,0]};
@@ -194,6 +197,7 @@ impl State{
             if a.encore>0&&(i!=a.encore_move||i<0||!a.usable(i as usize)){i=if a.encore_move>=0&&a.usable(a.encore_move as usize){a.encore_move}else{-1};actions[side]=Action::Move(i)}
             let m=move_at(a,i);
             if i>=0&&!a.usable(i as usize)||i<0&&(0..4).any(|j|a.usable(j)){self.put(side,a);continue}
+            attempted[side]=Some(i);
             if i>=0{a.pp[i as usize]-=1;if a.choice(){a.locked=i}}a.last=i;self.put(side,a);
             if self.blocked(m,d)||m.sound_move&&a.silence>0{continue}
             let targeted=m.category!="status"||m.toxic||m.yawn||m.sleep||m.confuse||m.taunt||m.swap_stages||m.ignite||m.parting||m.encore;
@@ -243,7 +247,7 @@ impl State{
             a.crit=(a.crit+m.raise_crit).min(3);if m.self_defense_down{a.change(2,-1);a.change(4,-1)}if m.drain>0.0&&total>0{a.heal((total as f64*m.drain)as i32)}if a.hp>0{if m.struggle{a.hurt(a.max()/4)}else if a.item()=="orb"{a.hurt(a.max()/10)}}
             self.put(side,a);self.put(1-side,d);self.clear_traps();if m.pivot&&a.hp>0&&self.living(1-side)>0{self.pivot(side,false)}
         }
-        self.end(rng)
+        self.end(rng);(order,attempted)
     }
     fn end(&mut self,rng:&mut Rng){
         let diff=ranked(self.a(0),5,false)-ranked(self.a(1),5,false);let order=if diff>0||diff==0&&rng.next()<0.5{[0,1]}else{[1,0]};

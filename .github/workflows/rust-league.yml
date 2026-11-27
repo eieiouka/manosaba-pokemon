@@ -1,0 +1,22 @@
+name: Rust Elo league training
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/league.rs', '.github/workflows/rust-league.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  league:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo build --release --manifest-path rust/Cargo.toml --example league
+      - run: mkdir -p /tmp/league && cp analysis/league-gen8.json /tmp/league/league.json
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example league -- /tmp/league 2 8 250000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rust-elo-league-gen16
+          path: /tmp/league/

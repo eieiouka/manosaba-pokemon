@@ -1,20 +1,20 @@
-name: Optimal preview selection Elo league
+name: Deep-search Elo league
 on:
   pull_request:
     branches: [develop]
-    paths: ['rust/examples/selection_league.rs','.github/workflows/selection-league.yml']
+    paths: ['rust/examples/deep_search_league.rs','.github/workflows/selection-league.yml']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  selection-league:
+  depth-league:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - run: cargo run --release --manifest-path rust/Cargo.toml --example selection_league -- /tmp/selection-league 2 8 100000
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example deep_search_league -- /tmp/deep-search-league 2 2000
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: optimal-selection-league
-          path: /tmp/selection-league/
+          name: deep-search-league
+          path: /tmp/deep-search-league/

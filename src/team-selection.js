@@ -24,10 +24,15 @@ export function selectionMix(matrix,own,opponent,rounds=32){
   for(let j=0;j<k;j++){const v=.25*br[j]+.75*(t?bs[j]/t:br[j]);if(v<bv){bv=v;bi=j}}
   ac[ai]++;bc[bi]++;for(let i=0;i<m;i++)as[i]+=pay[i*k+bi];for(let j=0;j<k;j++)bs[j]+=pay[ai*k+j];
  }
- return a.map((idx,i)=>({team:triples[idx].map(v=>ids[v]),weight:ac[i]/rounds,uniformScore:ar[i]})).filter(x=>x.weight>0).sort((x,y)=>y.weight-x.weight);
+ return a.map((idx,i)=>({team:triples[idx].map(v=>ids[v]),weight:ac[i]/rounds,uniformScore:ar[i],expectedScore:.25*ar[i]+.75*as[i]/rounds})).filter(x=>x.weight>0).sort((x,y)=>y.weight-x.weight);
 }
 export async function chooseOptimalTeam(own,opponent,rng=Math.random){
  if(roster.map(c=>c.id).join()!==ids.join())return null;
  const mix=selectionMix(await preloadSelection(),own,opponent);if(!mix?.length)return null;
  let u=rng();for(const x of mix){u-=x.weight;if(u<0)return x.team}return mix.at(-1).team;
+}
+
+export async function recommendTeam(own,opponent){
+ if(roster.map(c=>c.id).join()!==ids.join())return null;
+ return selectionMix(await preloadSelection(),own,opponent)?.[0]??null;
 }

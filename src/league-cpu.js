@@ -1,5 +1,6 @@
 // Adaptive live search. Preview hypotheses never use unrevealed selections.
 import {cpuView,legalActions,rankActions,quickAction,transition,seededRandom} from './ai.js';
+import {struggle} from './data.js';
 import {learnedValue,validateModel} from './learned-value.js';
 import checkpoint from './league-champion.json' with {type:'json'};
 const model=validateModel(checkpoint);
@@ -8,12 +9,16 @@ const seedOf=rng=>Math.floor(rng()*4294967296);
 export function fastLearnedCpu(s,{budget=45,maxRounds=6,rng=Math.random,recommendations=false}={}){
  const actions=legalActions(s,1);
  const single=a=>recommendations?(a?[{...a,detail:{method:'quick'}}]:[]):a;
- const near=(order,depth=1)=>recommendations?order.filter(x=>order[0].v-x.v<=.05).map(x=>({...x.a,detail:{method:'learned',value:x.v,gap:order[0].v-x.v,depth,samples:batch.length,...outcomes[x.i]}})):order[0].a;
+ const near=(order,depth=1)=>recommendations?order.filter(x=>order[0].v-x.v<=.05).map(x=>({...x.a,detail:{method:'learned',value:x.v,gap:order[0].v-x.v,depth,samples:batch.length,...outcomes[x.i],prediction:topNames(opponentPredictions),nextPlan:topNames(plans[x.i]),alternative:(()=>{const other=order.find(y=>y.i!==x.i);return other?{label:actionName(s,1,other.a),ownHp:outcomes[other.i].ownHp,foeHp:outcomes[other.i].foeHp,ownLoss:outcomes[other.i].ownLoss}:null})()}})):order[0].a;
  if(actions.length<=1)return single(actions[0]);
  const deadline=performance.now()+budget, hypotheses=cpuView(s);
  if(!hypotheses.length)return single(undefined);
  for(let i=hypotheses.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[hypotheses[i],hypotheses[j]]=[hypotheses[j],hypotheses[i]]}
  const totals=actions.map(()=>0),batch=[],outcomes=actions.map(()=>({ownHp:0,foeHp:0,ownLoss:0,foeLoss:0,boost:0}));
+ const opponentPredictions={},plans=actions.map(()=>({}));
+ const actionName=(state,side,a,hideSwitch=false)=>a.kind==='switch'?(hideSwitch?'控えへの交代':'交代：'+state.teams[side][a.index]?.name):(a.index<0?struggle:state.teams[side][state.active[side]].moves[a.index])?.name??'技';
+ const add=(map,label,weight)=>{map[label]=(map[label]??0)+weight};
+ const topNames=map=>Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,2).map(x=>x[0]);
  const hp=team=>team.reduce((sum,c)=>sum+c.hp/c.maxHp,0);
  const alive=team=>team.filter(c=>c.hp>0).length;
  for(let j=0;j<maxRounds;j++){
@@ -21,6 +26,7 @@ export function fastLearnedCpu(s,{budget=45,maxRounds=6,rng=Math.random,recommen
   const h=hypotheses[j%hypotheses.length],foes=rankActions(h,0).slice(0,2).map(x=>x.action);
   if(!foes.length)break;
   const weights=foes.length===1?[1]:[.65,.35],seed=seedOf(rng);
+  if(recommendations)foes.forEach((f,z)=>add(opponentPredictions,actionName(h,0,f,true),weights[z]));
   actions.forEach((a,i)=>{for(let z=0;z<foes.length;z++){
    const next=transition(h,foes[z],a,seededRandom(seed)),weight=weights[z];totals[i]+=weight*score(next);
    if(recommendations){const o=outcomes[i];o.ownHp+=weight*(hp(next.teams[1])-hp(h.teams[1]));o.foeHp+=weight*(hp(h.teams[0])-hp(next.teams[0]));o.ownLoss+=weight*(alive(h.teams[1])-alive(next.teams[1]));o.foeLoss+=weight*(alive(h.teams[0])-alive(next.teams[0]));const before=h.teams[1][h.active[1]],after=next.teams[1].find(c=>c.id===before.id);if(after)o.boost+=weight*after.stages.reduce((sum,v,k)=>sum+Math.max(0,v-before.stages[k]),0);}
@@ -39,7 +45,7 @@ export function fastLearnedCpu(s,{budget=45,maxRounds=6,rng=Math.random,recommen
   for(let i=0;i<count;i++){
    for(let z=0;z<foes.length;z++){
     const rand=seededRandom((seed^0x84291)>>>0);let n=transition(h,foes[z],order[i].a,rand);
-    if(n.winner===null){const a=quickAction(n,0),b=quickAction(n,1);if(a&&b)n=transition(n,a,b,seededRandom((seed^0x785ab)>>>0))}
+    if(n.winner===null){const a=quickAction(n,0),b=quickAction(n,1);if(a&&b){if(recommendations)add(plans[order[i].i],actionName(n,1,b),weights[z]);n=transition(n,a,b,seededRandom((seed^0x785ab)>>>0))}}
     refined[i]+=weights[z]*score(n);
    }
   }rounds++;

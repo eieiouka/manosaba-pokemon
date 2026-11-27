@@ -189,40 +189,61 @@ function App(){
  const hints=!busy&&actionHint?.state===battle?actionHint.actions:[];
  const switchHints=trapped?[]:hints.filter(a=>a.kind==='switch').map(a=>a.index);
  const moveHints=hints.filter(a=>a.kind==='move').map(a=>a.index);
- function matchupPlan(team,enemy){
- if(!team?.length)return [];
- const own=makeTeam(team),foes=makeTeam(enemy.map(c=>c.id));
- const results=own.map(c=>foes.map(d=>{const s={teams:[[c],[d]],active:[0,0],turn:1,winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
- const best=side=>rankActions(s,side).find(x=>x.action.kind==='move')?.score??0;
- return Math.min(2,best(0))-Math.min(2,best(1));}));
- const lines=[];
- for(let i=0;i<own.length;i++){const ranked=foes.map((c,j)=>({name:c.short,score:results[i][j],j})).sort((a,b)=>b.score-a.score);const good=ranked.filter(x=>x.score>.1).slice(0,2).map(x=>x.name);
- if(good.length)lines.push((i===0?'先発の':'控えの')+own[i].short+'は、'+good.join('・')+'との対面で攻防の相性が良いと簡易評価しています。');
- if(i===0){const bad=ranked.at(-1);if(bad?.score<-.1){const cover=[1,2].filter(k=>results[k]?.[bad.j]>.1).sort((a,b)=>results[b][bad.j]-results[a][bad.j])[0];if(cover!=null)lines.push('先発が'+bad.name+'と対面した場合は、'+own[cover].short+'を受け先・切り返し役の候補にするプランです。');else lines.push(bad.name+'との先発対面は不利と予想されます。控えのHPを温存して慎重に立ち回りましょう。');}}
- }
- return lines.length?lines:['個別対面の評価差が小さいため、相手の選出に合わせて控えを使い分けるプランです。'];
+ function selectionStory(plan,team,enemy){
+ const name=id=>roster.find(c=>c.id===id)?.short??id;
+ const role=id=>{const c=roster.find(c=>c.id===id),ms=c?.moves??[];
+  if(id==='ema')return '終盤にまじょごろしで一掃';
+  if(ms.some(x=>x.baton))return '能力を上げてバトンタッチで繋ぐ';
+  if(ms.some(x=>x.clairvoyance))return 'せんりがんと身代わりで積み、つけあがるで突破';
+  if(ms.some(x=>x.sleep)&&c?.ability==='サイコメイカー')return 'サイコフィールドを張り、眠りや交代技で後続を支援';
+  if(ms.some(x=>x.toxic)&&ms.some(x=>x.recover))return '毒と回復で相手を削る';
+  if(ms.some(x=>x.dance||x.swordsDance||x.calmMind))return '能力を積んで攻撃で突破';
+  if(ms.some(x=>x.rest||x.recover||x.amnesia))return '回復や耐久を活かして受け回す';
+  if(ms.some(x=>x.drain))return '攻撃しながら回復して押し切る';
+  if(ms.some(x=>x.pivot))return '攻撃しながら交代して対面を整える';
+  return '有利な対面を作って攻撃する';
+ };
+ if(!plan?.direct)return ['選出の計算中です。'];
+ const lines=[],opponent=plan.opponentTeams?.[0]?.team;
+ if(opponent?.length){lines.push('相手の構成を見ると、'+opponent.map(name).join('・')+'の選出が有力だと予想。先発は'+name(opponent[0])+'で'+role(opponent[0])+'、後続の'+name(opponent[1])+'は'+role(opponent[1])+'、'+name(opponent[2])+'は'+role(opponent[2])+'展開を警戒します。');if(plan.opponentTeams[1])lines.push('別の選出なら'+plan.opponentTeams[1].team.map(name).join('・')+'もあり得ます。');}
+ else lines.push('相手の選出表が未取得のため、見せ合いの6人全体から対面と引き先を考えます。');
+ const good=plan.direct.filter(x=>x.score>.5).sort((a,b)=>b.score-a.score).map(x=>name(x.id)),bad=plan.direct.filter(x=>x.score<=.5).map(x=>name(x.id));
+ lines.push('こちらは'+name(team[0])+'を先発に。'+(good.length?good.join('・')+'に対面勝ちが見込める（6人中'+good.length+'人）。':'明確な対面有利は見つかっていない。')+(bad.length?' 苦手なのは'+bad.join('・')+'。':''));
+ let assignment=new Map();if(plan.cover.length===2){const [a,b]=plan.cover;const options=a.options.flatMap(x=>b.options.map(y=>[x,y])).filter(([x,y])=>x.reserve!==y.reserve&&x.score>.5&&y.score>.5&&x.entry>=.75&&y.entry>=.75).sort((a,b)=>(b[0].score+b[1].score)-(a[0].score+a[1].score));if(options.length){assignment.set(a.id,options[0][0]);assignment.set(b.id,options[0][1]);}}
+ for(const x of plan.cover){const best=assignment.get(x.id)??x.options.find(y=>y.score>.5&&y.entry>=.75);if(best)lines.push(name(x.id)+'が出てきたら'+name(best.reserve)+'に引くプラン。交代で攻撃を受けた後も勝ちを見込めるので、'+name(team[0])+'を温存できます。');else lines.push(name(x.id)+'に安定して引ける控えは見つかりませんでした。'+name(x.options[0]?.reserve)+'が候補ですが、無理な交代は避けたい対面です。');}
+ lines.push('勝ち筋は'+name(team[0])+'で有利対面を取り、苦手な相手には控えを合わせること。'+team.slice(1).map(id=>name(id)+'は'+role(id)).join('。')+'。');
+ if(!plan.strict)lines.push('4体に対面勝ち＋苦手2体の引き先という条件を満たす候補が見つからなかったため、カバーを優先して選びました。');
+ lines.push('対面と引き先は各6回の簡易シミュレーションによる目安。相手の実際の選出や行動は未確定です。');
+ return lines;
 }
- const analysis=(!battle?{intro:selectionDetail?'公開6人同士の過去対戦成績を使い、相手の有力な選出も想定して比較しています。':'選出表を読み込み中、または取得できないため、公開6人への簡易相性評価です。',rows:selectionHint?[{title:selectionHint.map(id=>roster.find(c=>c.id===id)?.short??id).join(' → '),lines:selectionDetail?['過去の対戦成績から、相手の選出に対してこの順番が有力。以下は個別対面の簡易評価による立ち回り例です。',...matchupPlan(selectionHint,parties[1]),...(selectionDetail.opponentTeams??[]).map(x=>'相手の対策選出候補：'+x.team.map(id=>roster.find(c=>c.id===id)?.short??id).join(' → ')+'（戦略計算での採用 '+Math.round(x.weight*100)+'％、この対戦組み合わせの補正評価 '+Math.round(x.score*100)+'／100）'),'ランダム選出相手の過去成績：'+(selectionDetail.uniformScore*100).toFixed(1)+'％（引き分け半勝）','対策選出を含む評価指標：'+(selectionDetail.expectedScore*100).toFixed(1)+'／100','戦略計算での採用割合：'+(selectionDetail.weight*100).toFixed(0)+'％。相手の実際の選出は未判明。']:['敵6人との攻撃・防御の簡易評価が高い順です。',...matchupPlan(selectionHint,parties[1])]}]:[]}:{intro:'相手の未判明の控えを推測したAIの評価です。予測は確定した勝率ではありません。',rows:hints.map(a=>{
+ const analysis=(!battle?{intro:'相手の6人を見て、先発が4人以上に対面勝ちできるか、苦手な相手に控えを合わせられるかを調べています。',rows:selectionHint?[{title:selectionHint.map(id=>roster.find(c=>c.id===id)?.short??id).join(' → '),lines:selectionStory(selectionDetail,selectionHint,parties[1])}]:[]}:{intro:'相手の未判明の控えを推測したAIの評価です。予測は確定した勝率ではありません。',rows:hints.map(a=>{
  const d=a.detail??{},name=a.kind==='switch'?'交代：'+battle.teams[0][a.index]?.name:(a.index<0?struggle:active[0].moves[a.index])?.name;
  const lines=[];
  if(d.method==='learned'){
-  const h=d.hypotheses;
-  if(h){lines.push('相手の判明済み：'+h.known.join('・')+'。未判明の控えは公開6人から組み合わせを作り、'+h.possible+'通りのうち'+h.sampled+'通りを実際に試しました。');if(h.teams?.length&&h.teams[0].team!=='未判明なし')lines.push('今回試した控えの仮説：'+h.teams.map(x=>x.team).join('／')+'。現状は均等に試す方式で、どれが実際の控えかを断定していません。');}
-  if(d.prediction?.length)lines.push('相手の有力な行動は「'+d.prediction.join('」か「')+'」。現在の対面から簡易評価で順位を付けています。');
-  for(const x of d.branches??[]){
-   const explain=x.examples?.length?'例えば、'+x.examples[0]+'展開。':'盤面に大きな変化がない展開。';
-   const balance=x.foeHp+x.ownHp;
-   lines.push('相手が「'+x.label+'」なら：'+explain+' '+(balance>.12?'HP収支では有利。':balance<-.12?'HP収支では不利なので、そのリスクも考慮。':'HP収支は拮抗。')+'（この分岐の評価 '+x.value.toFixed(2)+'）。'+(x.followup?' 続く一例：'+x.followup+'。':''));
+  const h=d.hypotheses,other=d.alternative;
+  const target=active[1].short,action=a.kind==='switch'?battle.teams[0][a.index].short+'に引く':name+'を選ぶ';
+  const choices=d.opponentChoices??[];
+  if(choices.length){const switchOptions=choices.filter(x=>x.label.startsWith('交代：')),stay=choices.filter(x=>!x.label.startsWith('交代：'));
+   const first=choices[0];lines.push(first.label.startsWith('交代：')?'相手は'+target+'を下げて'+first.label.slice(3)+'に引く展開を最も警戒しています。':'相手は'+target+'で突っ張り、「'+first.label+'」を打つ展開を最も警戒しています。');
+   if(first.label.startsWith('交代：')&&stay.length)lines.push('ただし、居座って「'+stay[0].label+'」を打ってくる可能性も考慮。');
+   else if(!first.label.startsWith('交代：')&&switchOptions.length)lines.push('交代されるなら'+switchOptions.map(x=>x.label.slice(3)).join('・')+'が候補。');
+   else if(stay.length>1)lines.push('居座りの別択として「'+stay[1].label+'」も想定しています。');
   }
-  const other=d.alternative;
-  if(other){if(d.foeHp-other.foeHp>.15)lines.push('「'+other.label+'」と比較すると、相手のHPをより多く削る展開が見込めます。');if(d.ownHp-other.ownHp>.15)lines.push('「'+other.label+'」より味方のHPを残せる見込みです。');if(d.ownHp-other.ownHp<-.15)lines.push('ただし「'+other.label+'」より味方のHPを消耗する見込みなので、攻める代償もあります。');}
-  const positive=(d.drivers??[]).filter(x=>x.v>.03).map(x=>x.label),negative=(d.drivers??[]).filter(x=>x.v<-.03).map(x=>x.label);
-  if(positive.length)lines.push('1ターン後の学習済み評価でプラスに働いた要素は'+positive.join('・')+'です。');
-  if(negative.length)lines.push('一方、'+negative.join('・')+'はマイナスに働いています。');
-  if(d.alternatives?.length)lines.push('他の候補との比較：'+d.alternatives.slice(0,4).map(x=>x.label+'（'+x.value.toFixed(3)+'）').join('、')+'。それらを比較した上でこの手を推奨。');
-  if(d.nextPlan?.length)lines.push('想定した展開での次の一手は「'+d.nextPlan.join('」か「')+'」。これは簡易AIによる続きの予測なので、実際の展開を見て再評価します。');
-  if(d.gap>.001)lines.push('最善候補との差は小さく、こちらも有力です。');
-  lines.push('参考：評価値 '+d.value.toFixed(3)+'（最上位との差 '+d.gap.toFixed(3)+'）／'+d.depth+'ターン予測。');
+  for(const x of d.branches??[]){
+   const opening=x.label.startsWith('交代：')?'相手が'+x.label.slice(3)+'に引いてくるなら':'相手が'+target+'で「'+x.label+'」を選ぶなら';
+   const example=x.examples?.[0];const balance=x.foeHp+x.ownHp;
+   const reason=x.foeLoss>.55?'相手を倒せる展開が多い':x.ownLoss>.55?'こちらが倒される危険がある':balance>.12?'こちらがHPの削り合いで有利':balance<-.12?'HPの削り合いでは不利':'削り合いはほぼ互角';
+   let result=opening+'、'+action+'ことで'+reason+'と予想。';
+   if(example)result+=' 例：'+example+'。';
+   if(x.alternative){const z=x.alternative;if(x.value-z.value>.08)result+=' この展開では「'+z.label+'」よりも有利です。';else if(z.value-x.value>.08)result+=' この展開だけなら「'+z.label+'」の方が良いですが、他の相手の行動も含めて判断しています。';}
+   if(x.followup)result+=' その後の一例は'+x.followup.replace('の次の行動候補：','で「')+'」。';
+   lines.push(result);
+  }
+  if(other){if(d.foeHp-other.foeHp>.15)lines.push('「'+other.label+'」より相手を削りやすいため、'+action+'方を推奨。');if(d.ownHp-other.ownHp>.15)lines.push('「'+other.label+'」より味方のHPを温存しやすいため、'+action+'方を推奨。');if(d.ownHp-other.ownHp<-.15)lines.push('ただし「'+other.label+'」より味方のHPを消耗する見込みです。');}
+  if(h){lines.push('相手は'+h.known.join('・')+'まで判明。控えは'+h.possible+'通り中'+h.sampled+'通りを試しました。'+(h.teams?.[0]?.team!=='未判明なし'?'今回想定した控えの例：'+h.teams.map(x=>x.team).join('／')+'。':'')+'現時点では均等に試しており、相手の控えを断定するものではありません。');}
+  if(d.nextPlan?.length)lines.push('次のターンは「'+d.nextPlan.join('」か「')+'」で繋ぐ展開もあり、実際の行動を見て再評価します。');
+  if(d.alternatives?.length)lines.push('比較した候補：'+d.alternatives.slice(0,4).map(x=>x.label).join('、')+'。');
+  if(d.gap>.001)lines.push('この手と最善候補は評価が近いので、どちらも有力です。');
  }else if(d.method==='only')lines.push('現在選べる行動はこれだけです。PP・こだわり・挑発・交代制限などを考慮しています。');
  else if(d.method==='forced')lines.push('交代必須。残りHPと現在の対面での攻防を比較し、控えから選びました。');
  else lines.push('探索結果が未取得のため、対面・予測ダメージ・技効果による簡易評価の推奨です。');

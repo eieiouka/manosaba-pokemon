@@ -1,8 +1,8 @@
-name: HP-matchup Elo league
+name: Fixed matchup traces
 on:
   pull_request:
     branches: [develop]
-    paths: ['rust/examples/hp_matchup_league.rs','.github/workflows/selection-league.yml']
+    paths: ['rust/examples/fixed_matchup_traces.rs','rust/src/lib.rs','.github/workflows/selection-league.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,9 +12,9 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - run: cargo run --release --manifest-path rust/Cargo.toml --example hp_matchup_league -- /tmp/hp-matchup-league 2 2000
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example fixed_matchup_traces -- /tmp/fixed-matchup-traces 2
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hp-matchup-league
-          path: /tmp/hp-matchup-league/
+          name: fixed-matchup-traces
+          path: /tmp/fixed-matchup-traces/

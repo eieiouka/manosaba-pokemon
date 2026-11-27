@@ -1,0 +1,20 @@
+name: HP-matchup Elo league
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/hp_matchup_league.rs','.github/workflows/selection-league.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  depth-league:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example hp_matchup_league -- /tmp/hp-matchup-league 2 2000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hp-matchup-league
+          path: /tmp/hp-matchup-league/

@@ -19,6 +19,7 @@ pub struct Move {
     pub yawn:bool, pub confuse:bool, pub gravity:bool, pub agility:bool, pub trap:bool,
 }
 pub const FEATURES:usize=503;
+pub const CONTEXT_FEATURES:usize=FEATURES+87+60;
 impl State{
     fn attack_value(&self,a:Fighter,d:Fighter,m:&Move)->f64{
         if m.category=="status"||m.sound_move&&a.silence>0||self.blocked(m,d){return 0.0}
@@ -98,6 +99,32 @@ impl State{
             f[e+2]+=sign*living.iter().filter(|c|c.id==MIRIA||c.id==MARGO).count()as f64*self.terrain as f64/8.0;f[e+3]+=sign*living.iter().filter(|c|c.c().stats[5]<100).count()as f64*self.trick as f64/5.0;
             f[e+4]+=sign*(a.hp>0&&a.status==SLEEP)as u8 as f64;f[e+5]+=sign*(a.hp>0&&a.status==BURN)as u8 as f64;f[e+6]+=sign*(a.hp>0&&a.status==TOXIC)as u8 as f64;f[e+7]+=sign*if a.hp>0{a.crit as f64/3.0}else{0.0}
         }f
+    }
+    // Experimental continuation value: exact stage thresholds and live matchup interactions.
+    // The first 503 features retain the old schema, so zero-padded weights reproduce it.
+    pub fn contextual_features(&self)->Vec<f64>{
+        let mut f=self.features().to_vec();f.resize(CONTEXT_FEATURES,0.0);
+        for side in 0..2{
+            let sign=if side==0{1.0}else{-1.0};let a=self.a(side);let d=self.a(1-side);
+            if a.hp<=0{continue}
+            let stages=[a.stages[1],a.stages[2],a.stages[3],a.stages[4],a.stages[5],a.accuracy,a.evasion];
+            for (k,&stage) in stages.iter().enumerate(){for n in 1..=6{f[FEATURES+k*12+(n-1) as usize]+=sign*(stage>=n)as u8 as f64;f[FEATURES+k*12+6+(n-1)as usize]+=sign*(stage<=-n)as u8 as f64;}}
+            for n in 1..=3{f[FEATURES+84+(n-1)as usize]+=sign*(a.crit>=n)as u8 as f64;}
+            if d.hp<=0{continue}
+            let ah=a.hp as f64/a.max()as f64;let dh=d.hp as f64/d.max()as f64;
+            let out=self.best_hit(a,d);let inc=self.best_hit(d,a);
+            let pressure=(out/d.hp as f64).min(1.5);let danger=(inc/a.hp as f64).min(1.5);
+            let faster=((ranked(a,5,false)-ranked(d,5,false))*if self.trick>0{-1}else{1}).signum()as f64;
+            let mut cover=-1.0_f64;let mut count=0.0;
+            for &r in &self.teams[side]{if r.hp<=0||r.id==a.id{continue}let mut r=r;r.reset();let hit=(self.best_hit(r,d)/d.hp as f64).min(1.5);let risk=(self.best_hit(d,r)/r.hp as f64).min(1.5);cover=cover.max(hit-risk);count+=1.0}
+            if count==0.0{cover=0.0}
+            let signals=[pressure,danger,(out/d.max()as f64).min(1.5),(inc/a.max()as f64).min(1.5),
+                (pressure>=1.0)as u8 as f64,(danger>=1.0)as u8 as f64,faster,
+                pressure*faster,danger*faster,cover,cover*(danger-pressure),a.sub as f64/a.max()as f64];
+            let contexts=[1.0,ah,dh,(self.living(side)==1)as u8 as f64,(self.living(1-side)==1)as u8 as f64];
+            for (i,&c) in contexts.iter().enumerate(){for (j,&v) in signals.iter().enumerate(){f[FEATURES+87+i*12+j]+=sign*c*v;}}
+        }
+        f
     }
     pub fn learned(&self,side:usize,weights:&[f64],rng:&mut Rng,candidates:usize,samples:usize)->Action{
         let actions=self.rank(side);if actions.len()==1{return actions[0]}let opponent=self.quick(1-side);let seeds:Vec<_>=(0..samples).map(|_|(rng.next()*4294967296.0)as u32).collect();let mut best=actions[0];let mut value=f64::NEG_INFINITY;

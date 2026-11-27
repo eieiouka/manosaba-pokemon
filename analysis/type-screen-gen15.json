@@ -1,0 +1,226 @@
+{
+  "model": "gen-015",
+  "gamesPerVariantPerOpponent": 250,
+  "note": "Fixed AI weights; randomized 3v3 selection; type-only experiment, not a revised metagame.",
+  "results": [
+    {
+      "id": "hanna",
+      "original": [
+        "grass",
+        "dark"
+      ],
+      "types": [
+        "grass",
+        "flying"
+      ],
+      "modes": {
+        "random": {
+          "games": 250,
+          "before": 0.462,
+          "after": 0.512,
+          "delta": 0.05,
+          "approx95": [
+            -0.010913553862639654,
+            0.11091355386263965
+          ],
+          "enteredBefore": 226,
+          "enteredAfter": 224
+        },
+        "elite": {
+          "games": 250,
+          "before": 0.312,
+          "after": 0.43,
+          "delta": 0.118,
+          "approx95": [
+            0.053330138314344744,
+            0.18266986168565524
+          ],
+          "enteredBefore": 228,
+          "enteredAfter": 231
+        }
+      }
+    },
+    {
+      "id": "arisa",
+      "original": [
+        "fire",
+        "fighting"
+      ],
+      "types": [
+        "fire",
+        "electric"
+      ],
+      "modes": {
+        "random": {
+          "games": 250,
+          "before": 0.324,
+          "after": 0.354,
+          "delta": 0.03,
+          "approx95": [
+            -0.017150726442082237,
+            0.07715072644208223
+          ],
+          "enteredBefore": 217,
+          "enteredAfter": 218
+        },
+        "elite": {
+          "games": 250,
+          "before": 0.188,
+          "after": 0.19,
+          "delta": 0.002,
+          "approx95": [
+            -0.027653679319584526,
+            0.03165367931958453
+          ],
+          "enteredBefore": 226,
+          "enteredAfter": 224
+        }
+      }
+    },
+    {
+      "id": "anan",
+      "original": [
+        "poison"
+      ],
+      "types": [
+        "poison",
+        "bug"
+      ],
+      "modes": {
+        "random": {
+          "games": 250,
+          "before": 0.556,
+          "after": 0.478,
+          "delta": -0.078,
+          "approx95": [
+            -0.13083173659807032,
+            -0.025168263401929687
+          ],
+          "enteredBefore": 231,
+          "enteredAfter": 226
+        },
+        "elite": {
+          "games": 250,
+          "before": 0.346,
+          "after": 0.324,
+          "delta": -0.022,
+          "approx95": [
+            -0.0811161088002138,
+            0.037116108800213814
+          ],
+          "enteredBefore": 243,
+          "enteredAfter": 244
+        }
+      }
+    },
+    {
+      "id": "noa",
+      "original": [
+        "water"
+      ],
+      "types": [
+        "water",
+        "ground"
+      ],
+      "modes": {
+        "random": {
+          "games": 250,
+          "before": 0.488,
+          "after": 0.498,
+          "delta": 0.01,
+          "approx95": [
+            -0.029062006109327486,
+            0.04906200610932749
+          ],
+          "enteredBefore": 237,
+          "enteredAfter": 235
+        },
+        "elite": {
+          "games": 250,
+          "before": 0.324,
+          "after": 0.316,
+          "delta": -0.008,
+          "approx95": [
+            -0.023680000000000024,
+            0.007680000000000024
+          ],
+          "enteredBefore": 237,
+          "enteredAfter": 237
+        }
+      }
+    },
+    {
+      "id": "meruru",
+      "original": [
+        "ice"
+      ],
+      "types": [
+        "ice",
+        "dragon"
+      ],
+      "modes": {
+        "random": {
+          "games": 250,
+          "before": 0.486,
+          "after": 0.494,
+          "delta": 0.008,
+          "approx95": [
+            -0.032044179297150276,
+            0.048044179297150276
+          ],
+          "enteredBefore": 238,
+          "enteredAfter": 237
+        },
+        "elite": {
+          "games": 250,
+          "before": 0.23,
+          "after": 0.232,
+          "delta": 0.002,
+          "approx95": [
+            -0.02917546105332773,
+            0.03317546105332773
+          ],
+          "enteredBefore": 230,
+          "enteredAfter": 230
+        }
+      }
+    },
+    {
+      "id": "reia",
+      "original": [
+        "steel",
+        "fighting"
+      ],
+      "types": [
+        "steel",
+        "rock"
+      ],
+      "modes": {
+        "random": {
+          "games": 250,
+          "before": 0.598,
+          "after": 0.532,
+          "delta": -0.066,
+          "approx95": [
+            -0.12965611648745995,
+            -0.002343883512540071
+          ],
+          "enteredBefore": 231,
+          "enteredAfter": 224
+        },
+        "elite": {
+          "games": 250,
+          "before": 0.322,
+          "after": 0.194,
+          "delta": -0.128,
+          "approx95": [
+            -0.19576173783824802,
+            -0.060238262161751974
+          ],
+          "enteredBefore": 238,
+          "enteredAfter": 224
+        }
+      }
+    }
+  ]
+}

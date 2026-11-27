@@ -4,7 +4,7 @@ import {createPortal} from 'react-dom';
 import {roster,types,colors,items,struggle} from './data.js';
 import {start,startSequence,resolveSequence,makeTeam,canUseMove,damageRange,isTrapped} from './battle.js';
 import './style.css';
-import {chooseCpuTeam,chooseReserve} from './ai.js';
+import {chooseCpuTeam,chooseReserve,rankActions,legalActions} from './ai.js';
 import {chooseOptimalTeam,preloadSelection} from './team-selection.js';
 void preloadSelection();
 import {unlockAttackAudio,playAttackSound} from './sounds.js';
@@ -90,7 +90,7 @@ function InfoModal({character,move:initialMove,item,onClose,inBattle,opponent=fa
  </section></div>,document.body)
 }
 // Run search off the UI thread, with a hard timeout for slow devices.
-function thinkCpu(state){
+function thinkCpu(state,recommendations=false){
  return new Promise(resolve=>{
   let worker,timer;
   const finish=action=>{clearTimeout(timer);worker?.terminate();resolve(action)};
@@ -99,9 +99,18 @@ function thinkCpu(state){
    worker.onmessage=e=>finish(e.data);
    worker.onerror=()=>finish(undefined);
    timer=setTimeout(()=>finish(undefined),700);
-   worker.postMessage(state);
+   worker.postMessage(recommendations?{state,recommendations:true}:state);
   }catch{finish(undefined)}
  });
+}
+// Tactical fallback used only while the learned selection table is unavailable.
+function quickSelection(own,opponent){
+ const a=makeTeam(own),b=makeTeam(opponent);
+ return a.map(c=>({id:c.id,score:b.reduce((sum,d)=>{
+  const s={teams:[[c],[d]],active:[0,0],turn:1,winner:null,psychicTerrain:0,gravity:0,trickRoom:0};
+  const best=side=>rankActions(s,side).find(x=>x.action.kind==='move')?.score??0;
+  return sum+Math.min(2,best(0))-Math.min(2,best(1));
+ },0)})).sort((x,y)=>y.score-x.score).slice(0,3).map(x=>x.id);
 }
 function SelectionTimer({onExpire}){
  const [seconds,setSeconds]=useState(60);
@@ -137,12 +146,16 @@ function App(){
  const toggle=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):s.length<3?[...s,id]:s);
  const [busy,setBusy]=useState(false);
  const [selectionHint,setSelectionHint]=useState(null),[actionHint,setActionHint]=useState(null);
- useEffect(()=>{let current=true;setSelectionHint(null);const p=parties.map(team=>team.map(c=>c.id));chooseOptimalTeam(p[0],p[1],()=>0).then(team=>{if(current)setSelectionHint(team)}).catch(()=>{});return()=>{current=false}},[parties]);
+ useEffect(()=>{let current=true;const p=parties.map(team=>team.map(c=>c.id));setSelectionHint(quickSelection(p[0],p[1]));chooseOptimalTeam(p[0],p[1],()=>0).then(team=>{if(current&&team?.length===3)setSelectionHint(team)}).catch(()=>{});return()=>{current=false}},[parties]);
  useEffect(()=>{let current=true;setActionHint(null);if(!battle||busy||battle.winner!==null)return;
   const own=battle.teams[0][battle.active[0]];
-  if(!own.hp||battle.pendingSwitch){const list=battle.teams[0].map((c,i)=>c.hp&&i!==battle.active[0]?i:-1).filter(i=>i>=0);const index=chooseReserve(battle,0,list);if(index!=null)setActionHint({state:battle,action:{kind:'switch',index}});return;}
+  if(!own.hp||battle.pendingSwitch){const list=battle.teams[0].map((c,i)=>c.hp&&i!==battle.active[0]?i:-1).filter(i=>i>=0);const index=chooseReserve(battle,0,list);if(index!=null)setActionHint({state:battle,actions:[{kind:'switch',index}]});return;}
   const mirror={...battle,teams:[battle.teams[1],battle.teams[0]],active:[battle.active[1],battle.active[0]],preview:battle.preview?[battle.preview[1],battle.preview[0]]:null};
-  thinkCpu(mirror).then(action=>{if(current&&action)setActionHint({state:battle,action})});return()=>{current=false};
+  const legal=legalActions(battle,0);
+  const valid=a=>legal.some(x=>x.kind===a?.kind&&x.index===a?.index);
+  const fallback=rankActions(mirror,1).map(x=>x.action).find(valid)??legal[0];
+  if(fallback)setActionHint({state:battle,actions:[fallback]});
+  thinkCpu(mirror,true).then(actions=>{const hints=(Array.isArray(actions)?actions:[]).filter(valid);if(current&&hints.length)setActionHint({state:battle,actions:hints})});return()=>{current=false};
  },[battle,busy]);
  const [abilityNotice,setAbilityNotice]=useState(null);
  const [itemNotice,setItemNotice]=useState(null);
@@ -173,8 +186,9 @@ function App(){
  const reset=()=>{setParties([randomSix(),randomSix()]);setBattle(null);setSelected([]);setTab('move')};
  const active=battle?.teams.map((t,i)=>t[battle.active[i]]);
  const trapped=!!battle&&!battle.pendingSwitch&&isTrapped(battle,0);
- const hint=!busy&&actionHint?.state===battle?actionHint.action:null;
- const switchHint=hint?.kind==='switch'&&!trapped?hint.index:-1;
+ const hints=!busy&&actionHint?.state===battle?actionHint.actions:[];
+ const switchHints=trapped?[]:hints.filter(a=>a.kind==='switch').map(a=>a.index);
+ const moveHints=hints.filter(a=>a.kind==='move').map(a=>a.index);
  return <main style={{'--game-scale':gameScale}}> <header><div><div className="eyebrow">MANOSABA POKEMON</div><h1>まのさばポケモン</h1></div><button className="badge help-button" onClick={()=>setInfo({})}>How to play</button></header>
  {!battle?<><SelectionTimer onExpire={expireSelection}/><div className="preview-top">
  <section className="enemy"><div><h3>CPUのパーティ</h3></div><div className="enemy-list">{parties[1].map(c=><div className="mini" key={c.id}><Portrait c={c} onInspect={c=>inspect(c,true)}/><span>{c.short}</span></div>)}</div></section></div>
@@ -183,8 +197,8 @@ function App(){
  <div className="selection-bar" style={{justifyContent:'flex-end'}}><button className="primary" disabled={selected.length!==3||busy} onClick={beginBattle}>対戦開始</button></div>
  </>:<><div className={"arena"+(battle.psychicTerrain>0?" psychic-field":"")} style={{marginTop:10}}>{(battle.psychicTerrain>0||battle.gravity>0||battle.trickRoom>0)&&<div className="field-indicators">{battle.psychicTerrain>0&&<span className="field-psychic">サイコフィールド <strong>{battle.psychicTerrain}</strong>ターン</span>}{battle.trickRoom>0&&<span className="field-gravity">トリックルーム <strong>{battle.trickRoom}</strong>ターン</span>}{battle.gravity>0&&<span className="field-gravity">じゅうりょく <strong>{battle.gravity}</strong>ターン</span>}</div>}{[1,0].map(side=>{const c=active[side];return <div className={'fighter side'+side} key={side}><div className="fighter-info"><h2>{c.name} {c.status==='burn'&&<small style={{color:'#ff9870'}}>やけど</small>}{c.status==='poison'&&<small style={{color:'#c689e9'}}> どく</small>}{c.status==='toxic'&&<small style={{color:'#c689e9'}}> もうどく</small>}{c.drowsy>0&&<small style={{color:'#c9b5fb'}}> ねむけ</small>}{c.status==='freeze'&&<small style={{color:'#9ed9ef'}}> こおり</small>}{c.status==='sleep'&&<small style={{color:'#c9b5fb'}}> ねむり</small>}{c.confusion>0&&<small style={{color:'#f9df69'}}> 混乱</small>}{c.encoreTurns>0&&<small style={{color:'#f9df69'}}> アンコール {c.encoreTurns}T</small>}{c.taunted>0&&<small style={{color:'#f9df69'}}> 挑発 {c.taunted}T</small>}{c.subHp>0&&<small style={{color:'#a8dfc0'}}> 身代わり</small>}</h2><div className="fighter-meta"><div className="type-list">{c.types.map(t=><Type key={t} type={t}/>)}</div><div className="hp-number">HP {side===1?`${Math.ceil(c.hp/c.maxHp*100)}%`:`${c.hp} / ${c.maxHp}`}</div></div><div className="hp" key={c.id}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div></div><Portrait c={c.subHp>0?{...c,id:'substitute'}:c} fainted={!!c.fainted} onInspect={()=>inspect(c,side===1)}/>{abilityNotice?.side===side&&<div className="ability-notice" role="status"><small>{c.name}の特性</small><strong>{abilityNotice.ability}</strong></div>}{itemNotice?.side===side&&<div className="ability-notice item-notice" role="status"><small>{c.name}の持ち物</small><strong>{itemNotice.item}</strong></div>}{statNotice?.side===side&&<div className={'stat-notice '+(statNotice.delta>0?'stage-up':'stage-down')} role="status"><span>{statNotice.stat}</span><span className="stat-notice-arrows">{(statNotice.delta>0?'▲':'▼').repeat(Math.abs(statNotice.delta))}</span></div>}</div>})}</div>
  <div className="log" aria-live="polite">{battle.logs.at(-1)}</div>
- {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp||!!battle.pendingSwitch} onClick={()=>setTab('move')}>技を選ぶ</button><button className={tab==='switch'||!active[0].hp||battle.pendingSwitch?'on':''} disabled={busy||trapped} onClick={()=>setTab('switch')} style={switchHint>=0?hintStyle:undefined}>交代{switchHint>=0&&<span style={{color:'#f9df69',textShadow:'0 0 3px #282035',fontWeight:800}}> ★</span>}</button><BattleTimer busy={busy} turn={battle.turn}/></div>
- {!active[0].hp||battle.pendingSwitch||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} style={switchHint===i?hintStyle:undefined} aria-disabled={busy||trapped||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&!trapped&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} fainted={!!c.fainted} onInspect={inspect}/><strong>{c.short}{switchHint===i&&<span style={hintBadge}> AI ★</span>}</strong><small className="switch-hp-number">{c.hp}/{c.maxHp} HP</small><div className="hp switch-hp" role="meter" aria-label="HP" aria-valuemin={0} aria-valuemax={c.maxHp} aria-valuenow={c.hp}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div><span className={"held-item"+(!c.item?" spent":"")}>{items[c.item??c.initialItem]?.name??"持ち物なし"}</span></button>)}</div></>:<div className="moves">{(active[0].moves.some((m,i)=>canUseMove(active[0],i))?active[0].moves:[struggle]).map((m,k)=>{const i=m.struggle?-1:k;return <MoveButton key={active[0].id+':'+m.name} m={m} pp={active[0].pp?.[i]??m.pp} range={damageRange(battle,active[0],active[1],m)} disabled={busy} recommended={hint?.kind==='move'&&hint.index===i&&canUseMove(active[0],i)} locked={!canUseMove(active[0],i)} onUse={()=>act({kind:'move',index:i})} onInspect={move=>setInfo({move})}/>})}</div>}</section>}
+ {battle.winner!==null&&!busy?<section className="result"><h2>{battle.winner===0?'勝利！':'敗北…'}</h2><p>バトル終了</p><button className="primary" onClick={reset}>もう一度対戦する</button></section>:<section className="actions"><div className="tabs"><button className={tab==='move'?'on':''} disabled={busy||!active[0].hp||!!battle.pendingSwitch} onClick={()=>setTab('move')} style={moveHints.length?hintStyle:undefined}>技を選ぶ{moveHints.length>0&&tab==='switch'&&<span style={{color:'#f9df69',textShadow:'0 0 3px #282035'}}> ★</span>}</button><button className={tab==='switch'||!active[0].hp||battle.pendingSwitch?'on':''} disabled={busy||trapped} onClick={()=>setTab('switch')} style={switchHints.length>0?hintStyle:undefined}>交代{switchHints.length>0&&<span style={{color:'#f9df69',textShadow:'0 0 3px #282035',fontWeight:800}}> ★</span>}</button><BattleTimer busy={busy} turn={battle.turn}/></div>
+ {!active[0].hp||battle.pendingSwitch||tab==='switch'?<><p>{active[0].hp?'交代する魔法少女を選択':'次に戦う魔法少女を選択'}</p><div className="switches">{battle.teams[0].map((c,i)=><button key={c.id} style={switchHints.includes(i)?hintStyle:undefined} aria-disabled={busy||trapped||!c.hp||i===battle.active[0]} onClick={()=>{if(!busy&&!trapped&&c.hp&&i!==battle.active[0])act({kind:'switch',index:i})}}><Portrait c={c} fainted={!!c.fainted} onInspect={inspect}/><strong>{c.short}{switchHints.includes(i)&&<span style={hintBadge}> AI ★</span>}</strong><small className="switch-hp-number">{c.hp}/{c.maxHp} HP</small><div className="hp switch-hp" role="meter" aria-label="HP" aria-valuemin={0} aria-valuemax={c.maxHp} aria-valuenow={c.hp}><div style={{width:(c.hp/c.maxHp*100)+'%',background:c.hp/c.maxHp<.25?'#e26a6a':c.hp/c.maxHp<.5?'#e0b45d':'#69cf9c'}}/></div><span className={"held-item"+(!c.item?" spent":"")}>{items[c.item??c.initialItem]?.name??"持ち物なし"}</span></button>)}</div></>:<div className="moves">{(active[0].moves.some((m,i)=>canUseMove(active[0],i))?active[0].moves:[struggle]).map((m,k)=>{const i=m.struggle?-1:k;return <MoveButton key={active[0].id+':'+m.name} m={m} pp={active[0].pp?.[i]??m.pp} range={damageRange(battle,active[0],active[1],m)} disabled={busy} recommended={moveHints.includes(i)&&canUseMove(active[0],i)} locked={!canUseMove(active[0],i)} onUse={()=>act({kind:'move',index:i})} onInspect={move=>setInfo({move})}/>})}</div>}</section>}
  </>}
  {info&&<InfoModal item={info.item} move={info.move} character={battle&&info.character?(battle.teams[info.opponent?1:0].find(c=>c.id===info.character.id)??info.character):info.character} onClose={closeInfo} inBattle={!!battle} opponent={info.opponent}/>}
  </main>

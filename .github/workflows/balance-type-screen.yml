@@ -1,0 +1,22 @@
+name: Type balance screening
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['scripts/screen-types.mjs','.github/workflows/balance-type-screen.yml']
+permissions:
+  contents: read
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/screen-types.mjs 250 /tmp/balance-screen
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: balance-type-screen
+          path: /tmp/balance-screen/

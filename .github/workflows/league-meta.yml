@@ -1,0 +1,19 @@
+name: League champion meta evaluation
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/league_meta.rs', '.github/workflows/league-meta.yml']
+permissions:
+  contents: read
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example league_meta -- /tmp/league-meta 2 analysis/league-champion-gen16.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: league-meta-gen15
+          path: /tmp/league-meta/

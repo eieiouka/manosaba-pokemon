@@ -1,0 +1,20 @@
+name: Context-weight Elo league
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/context_weight_league.rs','rust/src/lib.rs','.github/workflows/selection-league.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  depth-league:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example context_weight_league -- /tmp/context-weight-league 2 2000 30000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: context-weight-league
+          path: /tmp/context-weight-league/

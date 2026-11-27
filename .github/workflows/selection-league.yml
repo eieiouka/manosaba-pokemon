@@ -1,0 +1,20 @@
+name: Learned-sample Elo league
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/learned_sample_league.rs','.github/workflows/selection-league.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  depth-league:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example learned_sample_league -- /tmp/learned-sample-league 2 4 20000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: learned-sample-league
+          path: /tmp/learned-sample-league/

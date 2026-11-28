@@ -4,6 +4,9 @@ on:
     branches: [develop]
     paths: ['rust/examples/matchup_knowledge.rs','.github/workflows/matchup-knowledge.yml']
   workflow_dispatch:
+concurrency:
+  group: matchup-knowledge-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -12,6 +15,12 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+      - name: Restore exact selection matrix used by control benchmark
+        run: |
+          git fetch --no-tags --depth=1 origin 8f5e222b95d8aaa35e3596d4a0fab373736e346d
+          mkdir -p public
+          git show 8f5e222b95d8aaa35e3596d4a0fab373736e346d:public/ai-selection-gen15.bin > public/ai-selection-gen15.bin
+          test "$(git hash-object public/ai-selection-gen15.bin)" = "e69bd8c0bd75cbb4132a796234bc99e698e5ecf0"
       - name: Decode verified matchup data
         run: |
           python - <<'PY'

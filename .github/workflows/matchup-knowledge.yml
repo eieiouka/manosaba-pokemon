@@ -1,0 +1,33 @@
+name: Matchup knowledge benchmark
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/matchup_knowledge.rs','.github/workflows/matchup-knowledge.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode verified matchup data
+        run: |
+          python - <<'PY'
+          import json, gzip, base64, hashlib, pathlib, shutil
+          p=pathlib.Path('/tmp/matchup-book')
+          p.mkdir()
+          shutil.copyfile('analysis/fixed-matchup-traces-baseline.json',p/'baseline.json')
+          for name in ['hp-grid','stage-grid']:
+              d=json.load(open('analysis/fixed-matchup-traces-'+name+'.json'))
+              raw=gzip.decompress(base64.b64decode(d['data']))
+              assert hashlib.sha256(raw).hexdigest()==d['raw_sha256']
+              (p/(name+'.json')).write_bytes(raw)
+          PY
+      - run: cargo run --release --manifest-path rust/Cargo.toml --example matchup_knowledge -- /tmp/matchup-knowledge 2 2000 /tmp/matchup-book
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: matchup-knowledge
+          path: /tmp/matchup-knowledge/

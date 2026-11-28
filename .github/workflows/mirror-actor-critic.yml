@@ -1,0 +1,26 @@
+name: Mirror actor critic
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['rust/examples/mirror_actor_critic.rs','.github/workflows/mirror-actor-critic.yml']
+  workflow_dispatch:
+concurrency:
+  group: mirror-actor-critic-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke test
+        run: cargo run --release --manifest-path rust/Cargo.toml --example mirror_actor_critic -- /tmp/mirror-smoke 2 1 64 20
+      - name: Train fixed trio
+        run: cargo run --release --manifest-path rust/Cargo.toml --example mirror_actor_critic -- /tmp/mirror-actor-critic 2 4 25000 2000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mirror-actor-critic
+          path: /tmp/mirror-actor-critic/

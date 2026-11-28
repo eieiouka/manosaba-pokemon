@@ -120,7 +120,7 @@ fn lookup(k:&Knowledge,a:manosaba_selfplay::Fighter,b:manosaba_selfplay::Fighter
  let p=a.id*13+b.id;let ah=a.hp as f64/a.max()as f64;let bh=b.hp as f64/b.max()as f64;
  let (i,j,t)=bin(ah);let (u,v,z)=bin(bh);let get=|i,j|k.hp[p*25+i*5+j];
  let hp=(1.-t)*((1.-z)*get(i,u)+z*get(i,v))+t*((1.-z)*get(j,u)+z*get(j,v));
- let full=get(4,4);let mut delta=0.;let mut n=0.;
+ let full=get(4,4);let mut delta=0.;let mut n: f64=0.;
  for (side,c,other) in [(0,a,b),(1,b,a)]{for (stat,rank) in [(1,c.stages[1]),(2,c.stages[2]),(3,c.stages[3]),(4,c.stages[4]),(5,c.stages[5]),(6,c.accuracy),(7,c.evasion),(8,c.crit)]{
  // The grid overwrites one absolute stage after entry. Skip the default entry debuff and EMA last boost.
  let default=if other.id==6&&(stat==1||stat==3){-1}else if last&&c.id==0&&stat==3{1}else{0};
@@ -139,7 +139,7 @@ fn knowledge_value(s:&State,side:usize,w:&[f64],weight:f64)->f64{
  if s.terrain>0||s.gravity>0||s.trick>0{confidence*=0.5}
  (base+weight*confidence*pair*(1.-base.abs())).clamp(-1.,1.)
 }
-fn wide_knowledge(s:&State,side:usize,w:&[f64],r:&mut Rng,width:usize,samples:usize,learned_rollout:bool,weight:f64)->Action{
+fn wide_knowledge(s:&State,side:usize,w:&[f64],r:&mut Rng,width:usize,samples:usize,learned_rollout:bool,knowledge_weight:f64)->Action{
  let own=s.rank(side);if own.len()==1{return own[0]}
  let mut foe=s.rank(1-side);foe.truncate(width);
  let seed=r.0;r.next();
@@ -151,13 +151,13 @@ fn wide_knowledge(s:&State,side:usize,w:&[f64],r:&mut Rng,width:usize,samples:us
    let weight=0.6_f64.powi(j as i32)/norm/samples as f64;
    for k in 0..samples{
     let sd=mix(seed as u64 ^ ((k as u64+1)*0x9e3779b9));
-    let mut n=step(s,side,a,b,sd);let immediate=knowledge_value(&n,side,w,weight);
+    let mut n=step(s,side,a,b,sd);let immediate=knowledge_value(&n,side,w,knowledge_weight);
     if n.winner.is_none(){
       let mut q=Rng(sd^0x482913);
       let acts=if learned_rollout{[smart(&n,0,w,&mut q),smart(&n,1,w,&mut q)]}else{[n.quick(0),n.quick(1)]};
       n.step(acts,&mut Rng(sd^0x84351));
     }
-    score+=weight*(0.45*immediate+0.55*knowledge_value(&n,side,w,weight));
+    score+=weight*(0.45*immediate+0.55*knowledge_value(&n,side,w,knowledge_weight));
    }
   }
   if score>top{top=score;best=a}
@@ -219,6 +219,8 @@ fn main(){
  let prior:League=serde_json::from_slice(&fs::read("analysis/sample-search-league-gen24.json").unwrap()).unwrap();
  let base=prior.pool.iter().find(|p|p.name=="wide2x16").unwrap().clone();assert_eq!(base.weights.len(),FEATURES);assert!(workers>0&&games>0);
  KNOW.set(load_knowledge(Path::new(&args[4]))).ok().unwrap();
+ let mut tested=0;for a in 0..13 {let b=(a+1)%13;let state=State::new([a,(a+2)%13,(a+4)%13],[b,(b+2)%13,(b+4)%13]);let v0=value(&state,0,&base.weights);let x=knowledge_value(&state,0,&base.weights,0.05);let y=knowledge_value(&state,0,&base.weights,0.15);assert!(((y-v0)-3.*(x-v0)).abs()<1e-9);if (x-v0).abs()>1e-8{tested+=1;}}
+ assert!(tested>0);println!("BOOK_WEIGHT_CHECK 5/15 percent differ on {} of 13 positions",tested);
  let mut policies=vec![base.clone()];for mode in ["book05","book15"]{let mut p=base.clone();p.name=mode.into();p.mode=mode.into();policies.push(p)}
  let mut stall=base.clone();stall.mode="stall".into();
  fs::create_dir_all(path).unwrap();let mut rows=vec![];
